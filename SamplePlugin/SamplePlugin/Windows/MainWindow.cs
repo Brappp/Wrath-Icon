@@ -10,22 +10,23 @@ namespace SamplePlugin
         private IDalamudTextureWrap? iconOnTexture;
         private IDalamudTextureWrap? iconOffTexture;
         private bool wrathState;
+        private readonly Configuration config;
+        private readonly Plugin plugin;
 
-        public MainWindow(string iconOnUrl, string iconOffUrl)
-            : base("", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        // Default size for the images
+        private const int DefaultImageSize = 64;
+
+        public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, Plugin plugin)
+            : base("", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
         {
-            SizeConstraints = new WindowSizeConstraints
-            {
-                MinimumSize = new Vector2(64, 64),
-                MaximumSize = new Vector2(64, 64)
-            };
+            this.config = config;
+            this.plugin = plugin;
 
             LoadTextures(iconOnUrl, iconOffUrl);
+
+            IsOpen = true; // Always open the window
         }
 
-        /// <summary>
-        /// Asynchronously loads the on/off textures.
-        /// </summary>
         private async void LoadTextures(string iconOnUrl, string iconOffUrl)
         {
             try
@@ -39,31 +40,65 @@ namespace SamplePlugin
             }
         }
 
-        /// <summary>
-        /// Updates the Wrath state and refreshes the image.
-        /// </summary>
         public void UpdateWrathState(bool isEnabled)
         {
             wrathState = isEnabled;
-            IsOpen = true; // Ensure the window remains open
         }
 
-        /// <summary>
-        /// Draws the current Wrath state icon in the window.
-        /// </summary>
         public override void Draw()
         {
-            var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
+            // Dynamically set window flags based on lock state
+            var windowFlags = config.IsLocked
+                ? ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
+                : ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
-            if (currentIcon != null)
+            // Calculate image size based on the selected configuration
+            Vector2 imageSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
+
+            // Dynamically calculate padding for locked state
+            Vector2 buttonPadding = Vector2.Zero;
+            if (config.IsLocked)
             {
-                Vector2 imageSize = new(64, 64);
-                ImGui.Image(currentIcon.ImGuiHandle, imageSize);
+                // Use ImGui style variables to fetch the padding for buttons
+                buttonPadding = ImGui.GetStyle().FramePadding;
             }
-            else
+
+            // Set the window size dynamically to fit the image and padding
+            Vector2 windowSize = imageSize + buttonPadding * 2;
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+            ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
+
+            if (ImGui.Begin("###WrathIconMainWindow", windowFlags))
             {
-                ImGui.Text("Loading...");
+                var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
+
+                if (currentIcon != null)
+                {
+                    if (config.IsLocked)
+                    {
+                        // Render as a button with padding
+                        if (ImGui.ImageButton(currentIcon.ImGuiHandle, imageSize))
+                        {
+                            Plugin.CommandManager.ProcessCommand("/wrath auto");
+                            Plugin.PluginLog.Debug("Wrath auto command executed via MainWindow button.");
+                        }
+                    }
+                    else
+                    {
+                        // Render as an image without padding
+                        ImGui.Image(currentIcon.ImGuiHandle, imageSize);
+                    }
+                }
+                else
+                {
+                    ImGui.Text("Loading...");
+                }
+
+                ImGui.End();
             }
+
+            ImGui.PopStyleVar(); // Restore default padding
         }
+
     }
 }

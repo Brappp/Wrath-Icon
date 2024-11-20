@@ -1,5 +1,4 @@
 using Dalamud.Game.Command;
-using Dalamud.IoC;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using System;
@@ -10,6 +9,7 @@ using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.IoC;
 
 namespace SamplePlugin
 {
@@ -19,7 +19,9 @@ namespace SamplePlugin
         public readonly WindowSystem WindowSystem = new("Wrath Status Icon");
 
         private MainWindow mainWindow;
+        private ConfigWindow configWindow;
         private WrathStateChecker wrathStateChecker;
+        private Configuration config;
 
         [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
         [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
@@ -34,40 +36,81 @@ namespace SamplePlugin
 
         public Plugin()
         {
+            // Load or initialize configuration
+            config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            config.Initialize(PluginInterface);
+
             var iconOnUrl = "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/SamplePlugin/Data/icon-on.png";
             var iconOffUrl = "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/SamplePlugin/Data/icon-off.png";
 
             PluginLog.Information("[Debug] Plugin initializing...");
 
-            mainWindow = new MainWindow(iconOnUrl, iconOffUrl);
-            WindowSystem.AddWindow(mainWindow);
+            // Initialize windows
+            mainWindow = new MainWindow(iconOnUrl, iconOffUrl, config, this);
+            configWindow = new ConfigWindow(config);
 
+            // Add windows to the window system
+            WindowSystem.AddWindow(mainWindow);
+            WindowSystem.AddWindow(configWindow);
+
+            // Initialize WrathStateChecker
             wrathStateChecker = new WrathStateChecker(this);
 
             // Subscribe to chat messages
             ChatGui.ChatMessage += wrathStateChecker.ChatMessageHandler;
 
+            // Handle Wrath state changes
             wrathStateChecker.OnWrathStateChanged += state =>
             {
                 PluginLog.Debug($"WrathStateChecker.OnWrathStateChanged triggered with state: {(state ? "Enabled" : "Disabled")}");
                 mainWindow.UpdateWrathState(state);
             };
 
+            // Add command handler
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Toggle Wrath Status Icon UI"
             });
 
+            // Register UI callbacks
             PluginInterface.UiBuilder.Draw += DrawUI;
-            PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
+            PluginInterface.UiBuilder.OpenConfigUi += OpenConfigWindow;
+            PluginInterface.UiBuilder.OpenMainUi += OpenMainWindow;
+
+            // Automatically set the state
+            InitializeWrathState();
 
             PluginLog.Information("Plugin initialized.");
         }
 
         private void OnCommand(string command, string args)
         {
-            PluginLog.Debug("Command triggered to toggle MainWindow.");
-            mainWindow.Toggle();
+            PluginLog.Debug("Command triggered to toggle ConfigWindow.");
+            configWindow.Toggle(); // Open or close the configuration window
+        }
+
+        private async void InitializeWrathState()
+        {
+            PluginLog.Debug("Initializing Wrath state with /wrath auto command.");
+
+            // Run the command twice to set the plugin's state
+            CommandManager.ProcessCommand("/wrath auto");
+            await Task.Delay(500); // Add a small delay between commands
+            CommandManager.ProcessCommand("/wrath auto");
+
+            PluginLog.Debug("Wrath state initialization complete.");
+        }
+
+        private void OpenConfigWindow()
+        {
+            if (!configWindow.IsOpen)
+                configWindow.Toggle(); // Open or close the configuration window
+        }
+
+        private void OpenMainWindow()
+        {
+            if (!mainWindow.IsOpen)
+                mainWindow.Toggle(); // Open or close the main window
         }
 
         public void UpdateWrathState(bool isEnabled)
@@ -119,9 +162,14 @@ namespace SamplePlugin
 
         public void Dispose()
         {
+            // Unsubscribe from UI callbacks
+            PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigWindow;
+            PluginInterface.UiBuilder.OpenMainUi -= OpenMainWindow;
+
             // Unsubscribe from chat messages
             ChatGui.ChatMessage -= wrathStateChecker.ChatMessageHandler;
 
+            // Dispose textures
             foreach (var texture in TextureCache.Values)
             {
                 if (texture is IDalamudTextureWrap wrap)
@@ -130,14 +178,14 @@ namespace SamplePlugin
                 }
             }
 
+            // Remove command handler
             CommandManager.RemoveHandler(CommandName);
-            PluginInterface.UiBuilder.Draw -= DrawUI;
-            WindowSystem.RemoveAllWindows();
-        }
 
-        public void ToggleMainUI()
-        {
-            mainWindow.Toggle();
+            // Unsubscribe UI events
+            PluginInterface.UiBuilder.Draw -= DrawUI;
+
+            // Remove all windows
+            WindowSystem.RemoveAllWindows();
         }
     }
 }

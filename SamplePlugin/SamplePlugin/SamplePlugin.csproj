@@ -1,38 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="Dalamud.Plugin.Bootstrap.targets" />
+    <Import Project="Dalamud.Plugin.Bootstrap.targets" />
 
-  <PropertyGroup>
-    <Version>0.0.0.1</Version>
-    <Description>A sample plugin.</Description>
-    <PackageProjectUrl>https://github.com/goatcorp/SamplePlugin</PackageProjectUrl>
-    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-    <IsPackable>false</IsPackable>
-    <UseWindowsForms>true</UseWindowsForms> <!-- Enables Windows Forms for Clipboard or KeyPress -->
-    <EnableWindowsTargeting>true</EnableWindowsTargeting> <!-- Ensures Linux compatibility -->
-  </PropertyGroup>
+    <PropertyGroup>
+        <Version>0.0.0.1</Version>
+        <Description>A sample plugin.</Description>
+        <PackageProjectUrl>https://github.com/goatcorp/SamplePlugin</PackageProjectUrl>
+        <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
 
-  <ItemGroup>
-    <!-- Include Wrath Status Icons -->
-    <Content Include="Resources\icon-on.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-    <Content Include="Resources\icon-off.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="SharpDX" Version="4.2.0" />
-    <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />
-    <PackageReference Include="SharpDX.DXGI" Version="4.2.0" />
-    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Reference the ECommons Project -->
-    <ProjectReference Include="..\ECommons\ECommons\ECommons.csproj" />
-  </ItemGroup>
+        <IsPackable>false</IsPackable>
+        <UseWindowsForms>true</UseWindowsForms>
+        <EnableWindowsTargeting>false</EnableWindowsTargeting>
+    </PropertyGroup>
 </Project>
