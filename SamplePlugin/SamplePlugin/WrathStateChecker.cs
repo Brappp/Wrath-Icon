@@ -1,33 +1,53 @@
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
+using System;
 
-namespace SamplePlugin;
-
-// Change class from internal to public
-public class WrathStateChecker
+namespace SamplePlugin
 {
-    private bool IsWrathEnabledInternal = false;
-
-    public void ChatMessageHandler(XivChatType type, int a2, ref SeString sender, ref SeString message, ref bool isHandled)
+    public class WrathStateChecker
     {
-        // Log the type and message for debugging
-        System.Console.WriteLine($"[Chat] Type: {type}, Message: {message.TextValue}");
+        private readonly Plugin plugin; // Reference to the plugin
+        private bool isWrathEnabled = false; // Current Wrath state
 
-        // Check for Wrath's Auto-Rotation messages
-        if (message.TextValue.Contains("Auto-Rotation set to ON"))
-        {
-            IsWrathEnabledInternal = true;
-            System.Console.WriteLine("Wrath Auto-Rotation: Enabled");
-        }
-        else if (message.TextValue.Contains("Auto-Rotation set to OFF"))
-        {
-            IsWrathEnabledInternal = false;
-            System.Console.WriteLine("Wrath Auto-Rotation: Disabled");
-        }
-    }
+        public event Action<bool>? OnWrathStateChanged;
 
-    public bool IsWrathEnabled()
-    {
-        return IsWrathEnabledInternal;
+        public WrathStateChecker(Plugin plugin)
+        {
+            this.plugin = plugin;
+        }
+
+        /// <summary>
+        /// Handles chat messages to toggle Wrath state.
+        /// </summary>
+        public void ChatMessageHandler(XivChatType type, int a2, ref SeString sender, ref SeString message, ref bool isHandled)
+        {
+            Plugin.PluginLog.Debug($"ChatMessageHandler triggered with type: {type}, message: {message.TextValue}");
+
+            if (message.TextValue.Contains("Auto-Rotation set to ON"))
+            {
+                SetWrathState(true);
+            }
+            else if (message.TextValue.Contains("Auto-Rotation set to OFF"))
+            {
+                SetWrathState(false);
+            }
+        }
+
+        /// <summary>
+        /// Sets the Wrath state and triggers an event.
+        /// </summary>
+        private void SetWrathState(bool isEnabled)
+        {
+            if (isWrathEnabled != isEnabled)
+            {
+                isWrathEnabled = isEnabled;
+
+                Plugin.PluginLog.Debug($"Wrath state updated internally to: {(isEnabled ? "Enabled" : "Disabled")}");
+
+                OnWrathStateChanged?.Invoke(isWrathEnabled);
+            }
+        }
+
+        public bool IsWrathEnabled() => isWrathEnabled;
     }
 }
