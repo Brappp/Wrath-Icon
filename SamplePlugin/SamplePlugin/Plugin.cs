@@ -7,6 +7,8 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
+using Dalamud.Game;
+using Dalamud.Game.ClientState;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.IoC;
@@ -23,11 +25,15 @@ namespace SamplePlugin
         private WrathStateChecker wrathStateChecker;
         private Configuration config;
 
+        private bool isInitialized = false;
+
         [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
         [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
         [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
         [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+        [PluginService] internal static IFramework Framework { get; private set; } = null!;
+        [PluginService] internal static IClientState ClientState { get; private set; } = null!;
 
         private static readonly ConcurrentDictionary<string, IDalamudTextureWrap?> TextureCache = new();
         private static HttpClient httpClient = new();
@@ -35,6 +41,25 @@ namespace SamplePlugin
         public string Name => "Wrath Status Icon";
 
         public Plugin()
+        {
+            // Subscribe to the Framework Update event to delay initialization
+            Framework.Update += OnFrameworkUpdate;
+        }
+
+        private void OnFrameworkUpdate(IFramework framework)
+        {
+            // Check if the player is logged in and initialization hasn't already occurred
+            if (ClientState.IsLoggedIn && !isInitialized)
+            {
+                Initialize();
+                isInitialized = true;
+
+                // Unsubscribe from the Framework Update event
+                Framework.Update -= OnFrameworkUpdate;
+            }
+        }
+
+        private void Initialize()
         {
             // Load or initialize configuration
             config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
@@ -49,9 +74,9 @@ namespace SamplePlugin
             mainWindow = new MainWindow(iconOnUrl, iconOffUrl, config, this);
             configWindow = new ConfigWindow(config);
 
-            // Add windows to the window system
-            WindowSystem.AddWindow(mainWindow);
-            WindowSystem.AddWindow(configWindow);
+            // Register windows
+            RegisterWindow(mainWindow);
+            RegisterWindow(configWindow);
 
             // Initialize WrathStateChecker
             wrathStateChecker = new WrathStateChecker(this);
@@ -81,6 +106,12 @@ namespace SamplePlugin
             InitializeWrathState();
 
             PluginLog.Information("Plugin initialized.");
+        }
+
+        private void RegisterWindow(Window window)
+        {
+            PluginLog.Debug($"Registering window: {window.WindowName}");
+            WindowSystem.AddWindow(window);
         }
 
         private void OnCommand(string command, string args)
@@ -185,6 +216,7 @@ namespace SamplePlugin
             PluginInterface.UiBuilder.Draw -= DrawUI;
 
             // Remove all windows
+            PluginLog.Debug("Removing all windows...");
             WindowSystem.RemoveAllWindows();
         }
     }

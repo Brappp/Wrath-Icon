@@ -13,11 +13,8 @@ namespace SamplePlugin
         private readonly Configuration config;
         private readonly Plugin plugin;
 
-        // Default size for the images
-        private const int DefaultImageSize = 64;
-
         public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, Plugin plugin)
-            : base("", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+            : base("WrathIconMainWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
         {
             this.config = config;
             this.plugin = plugin;
@@ -36,7 +33,7 @@ namespace SamplePlugin
             }
             catch
             {
-                Plugin.PluginLog.Error("Failed to load textures. Check the URLs or connection.");
+                Plugin.PluginLog.Error("Failed to load textures.");
             }
         }
 
@@ -49,43 +46,50 @@ namespace SamplePlugin
         {
             // Dynamically set window flags based on lock state
             var windowFlags = config.IsLocked
-                ? ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
-                : ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+                ? ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar |
+                  ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration
+                : ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
+                  ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration;
 
             // Calculate image size based on the selected configuration
             Vector2 imageSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
 
-            // Dynamically calculate padding for locked state
-            Vector2 buttonPadding = Vector2.Zero;
-            if (config.IsLocked)
-            {
-                // Use ImGui style variables to fetch the padding for buttons
-                buttonPadding = ImGui.GetStyle().FramePadding;
-            }
+            // Dynamically calculate button padding for locked state
+            Vector2 buttonPadding = ImGui.GetStyle().FramePadding;
 
-            // Set the window size dynamically to fit the image and padding
-            Vector2 windowSize = imageSize + buttonPadding * 2;
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
-            ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
+            // Additional padding offsets for locked mode (if necessary)
+            Vector2 extraPadding = config.IsLocked ? new Vector2(2.0f, 2.0f) : Vector2.Zero;
 
-            if (ImGui.Begin("###WrathIconMainWindow", windowFlags))
+            // Calculate the total effective size of the button or image
+            Vector2 effectiveSize = imageSize + buttonPadding * 4 + extraPadding;
+
+            // Set the window size dynamically to fit the effective size
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero); // Remove padding
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);     // Remove border
+            ImGui.SetNextWindowSize(effectiveSize, ImGuiCond.Always);
+
+            // Static and unique window name
+            if (ImGui.Begin("WrathIconMainWindow", windowFlags))
             {
                 var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
 
                 if (currentIcon != null)
                 {
+                    // Adjust cursor position based on padding and offsets
+                    Vector2 cursorPosition = buttonPadding + (config.IsLocked ? extraPadding : Vector2.Zero);
+                    ImGui.SetCursorPos(cursorPosition);
+
                     if (config.IsLocked)
                     {
-                        // Render as a button with padding
+                        // Render as a button in locked mode
                         if (ImGui.ImageButton(currentIcon.ImGuiHandle, imageSize))
                         {
                             Plugin.CommandManager.ProcessCommand("/wrath auto");
-                            Plugin.PluginLog.Debug("Wrath auto command executed via MainWindow button.");
                         }
                     }
                     else
                     {
-                        // Render as an image without padding
+                        // Render as an image in unlocked mode
                         ImGui.Image(currentIcon.ImGuiHandle, imageSize);
                     }
                 }
@@ -97,8 +101,12 @@ namespace SamplePlugin
                 ImGui.End();
             }
 
-            ImGui.PopStyleVar(); // Restore default padding
+            ImGui.PopStyleVar(2); // Restore padding and border settings
         }
+
+
+
+
 
     }
 }
