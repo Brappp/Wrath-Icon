@@ -3,7 +3,7 @@ using Dalamud.Interface.Textures.TextureWraps;
 using ImGuiNET;
 using System.Numerics;
 
-namespace SamplePlugin
+namespace WrathIcon
 {
     public class MainWindow : Window
     {

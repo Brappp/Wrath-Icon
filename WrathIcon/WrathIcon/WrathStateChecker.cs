@@ -2,7 +2,7 @@ using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using System;
 
-namespace SamplePlugin
+namespace WrathIcon
 {
     public class WrathStateChecker
     {

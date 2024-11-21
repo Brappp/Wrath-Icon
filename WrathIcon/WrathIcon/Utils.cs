@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 
-namespace SamplePlugin
+namespace WrathIcon
 {
     public static class Utils
     {

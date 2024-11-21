@@ -13,7 +13,7 @@ using Dalamud.Game.Text;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.IoC;
 
-namespace SamplePlugin
+namespace WrathIcon
 {
     public sealed class Plugin : IDalamudPlugin
     {
