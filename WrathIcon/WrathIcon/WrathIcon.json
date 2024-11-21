@@ -1,12 +1,10 @@
 {
-  "Author": "your name here",
-  "Name": "Sample Plugin",
-  "Punchline": "A short one-liner that shows up in /xlplugins.",
-  "Description": "A description that shows up in /xlplugins. List any major slash-command(s).",
+  "Author": "wah",
+  "Name": "WrathIcon",
+  "Punchline": "Wrath Auto Toggle",
+  "Description": "Wrath Auto Toggle",
   "ApplicableVersion": "any",
   "Tags": [
-    "sample",
-    "plugin",
-    "goats"
+    "wrath"
   ]
 }
