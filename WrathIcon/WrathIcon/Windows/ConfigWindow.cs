@@ -3,7 +3,6 @@ using ImGuiNET;
 using System.Linq;
 using System;
 
-
 namespace WrathIcon
 {
     public class ConfigWindow : Window
@@ -30,12 +29,22 @@ namespace WrathIcon
                 config.Save();
             }
 
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Choose the size of the Wrath icon displayed on the UI.");
+            }
+
             // Lock/Unlock checkbox
             bool isLocked = config.IsLocked;
             if (ImGui.Checkbox("Lock Window", ref isLocked))
             {
                 config.IsLocked = isLocked;
                 config.Save();
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Lock the window in place to prevent accidental movement.");
             }
         }
     }

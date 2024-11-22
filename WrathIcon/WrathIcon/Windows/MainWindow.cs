@@ -2,6 +2,8 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Textures.TextureWraps;
 using ImGuiNET;
 using System.Numerics;
+using WrathIcon.Utilities;
+using WrathIcon.Core;
 
 namespace WrathIcon
 {
@@ -11,13 +13,15 @@ namespace WrathIcon
         private IDalamudTextureWrap? iconOffTexture;
         private bool wrathState;
         private readonly Configuration config;
-        private readonly Plugin plugin;
+        private readonly IWrathStateManager wrathStateManager;
+        private readonly TextureManager textureManager;
 
-        public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, Plugin plugin)
-            : base("WrathIconMainWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, IWrathStateManager wrathStateManager, TextureManager textureManager)
+            : base("WrathIconMainWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground)
         {
             this.config = config;
-            this.plugin = plugin;
+            this.wrathStateManager = wrathStateManager;
+            this.textureManager = textureManager;
 
             LoadTextures(iconOnUrl, iconOffUrl);
 
@@ -28,8 +32,8 @@ namespace WrathIcon
         {
             try
             {
-                iconOnTexture = await Plugin.LoadTextureAsync(iconOnUrl);
-                iconOffTexture = await Plugin.LoadTextureAsync(iconOffUrl);
+                iconOnTexture = await textureManager.LoadTextureAsync(iconOnUrl);
+                iconOffTexture = await textureManager.LoadTextureAsync(iconOffUrl);
             }
             catch
             {
@@ -44,53 +48,36 @@ namespace WrathIcon
 
         public override void Draw()
         {
-            // Dynamically set window flags based on lock state
-            var windowFlags = config.IsLocked
-                ? ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar |
-                  ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration
-                : ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
-                  ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration;
+            // Calculate the window size with extra width and height for padding
+            Vector2 imageSize = new Vector2(config.SelectedImageSize + 20, config.SelectedImageSize + 20); // Add padding
+            ImGui.SetNextWindowSize(imageSize, ImGuiCond.Always);
 
-            // Calculate image size based on the selected configuration
-            Vector2 imageSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
-
-            // Dynamically calculate button padding for locked state
-            Vector2 buttonPadding = ImGui.GetStyle().FramePadding;
-
-            // Additional padding offsets for locked mode (if necessary)
-            Vector2 extraPadding = config.IsLocked ? new Vector2(2.0f, 2.0f) : Vector2.Zero;
-
-            // Calculate the total effective size of the button or image
-            Vector2 effectiveSize = imageSize + buttonPadding * 4 + extraPadding;
-
-            // Set the window size dynamically to fit the effective size
+            // Begin the transparent, undecorated window
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero); // Remove padding
             ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);     // Remove border
-            ImGui.SetNextWindowSize(effectiveSize, ImGuiCond.Always);
-
-            // Static and unique window name
-            if (ImGui.Begin("WrathIconMainWindow", windowFlags))
+            if (ImGui.Begin("WrathIconMainWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground))
             {
                 var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
 
                 if (currentIcon != null)
                 {
-                    // Adjust cursor position based on padding and offsets
-                    Vector2 cursorPosition = buttonPadding + (config.IsLocked ? extraPadding : Vector2.Zero);
+                    // Calculate position to center the icon in the window
+                    Vector2 iconSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
+                    Vector2 cursorPosition = (imageSize - iconSize) * 0.5f; // Center icon
                     ImGui.SetCursorPos(cursorPosition);
 
                     if (config.IsLocked)
                     {
-                        // Render as a button in locked mode
-                        if (ImGui.ImageButton(currentIcon.ImGuiHandle, imageSize))
+                        // Render as a button when locked
+                        if (ImGui.ImageButton(currentIcon.ImGuiHandle, iconSize))
                         {
                             Plugin.CommandManager.ProcessCommand("/wrath auto");
                         }
                     }
                     else
                     {
-                        // Render as an image in unlocked mode
-                        ImGui.Image(currentIcon.ImGuiHandle, imageSize);
+                        // Render as an image when unlocked
+                        ImGui.Image(currentIcon.ImGuiHandle, iconSize);
                     }
                 }
                 else
@@ -100,13 +87,7 @@ namespace WrathIcon
 
                 ImGui.End();
             }
-
-            ImGui.PopStyleVar(2); // Restore padding and border settings
+            ImGui.PopStyleVar(2); // Restore style variables
         }
-
-
-
-
-
     }
 }

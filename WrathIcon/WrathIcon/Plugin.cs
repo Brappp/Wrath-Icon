@@ -2,16 +2,15 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using System;
-using System.Collections.Concurrent;
-using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
 using Dalamud.Game;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Text;
-using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.IoC;
+using WrathIcon.Core;
+using WrathIcon.Utilities;
 
 namespace WrathIcon
 {
@@ -22,8 +21,9 @@ namespace WrathIcon
 
         private MainWindow mainWindow;
         private ConfigWindow configWindow;
-        private WrathStateChecker wrathStateChecker;
+        private IWrathStateManager wrathStateManager;
         private Configuration config;
+        private TextureManager textureManager;
 
         private bool isInitialized = false;
 
@@ -35,9 +35,6 @@ namespace WrathIcon
         [PluginService] internal static IFramework Framework { get; private set; } = null!;
         [PluginService] internal static IClientState ClientState { get; private set; } = null!;
 
-        private static readonly ConcurrentDictionary<string, IDalamudTextureWrap?> TextureCache = new();
-        private static HttpClient httpClient = new();
-
         public string Name => "Wrath Status Icon";
 
         public Plugin()
@@ -48,6 +45,9 @@ namespace WrathIcon
             // Subscribe to login and logout events
             ClientState.Login += OnLogin;
             ClientState.Logout += OnLogout;
+
+            // Subscribe to territory changes
+            ClientState.TerritoryChanged += OnTerritoryChanged;
         }
 
         private void OnFrameworkUpdate(IFramework framework)
@@ -65,12 +65,15 @@ namespace WrathIcon
             config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             config.Initialize(PluginInterface);
 
+            textureManager = new TextureManager(TextureProvider);
+            wrathStateManager = new WrathStateChecker(this);
+
             var iconOnUrl = "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/WrathIcon/Data/icon-on.png";
             var iconOffUrl = "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/WrathIcon/Data/icon-off.png";
 
             PluginLog.Information("[Debug] Plugin initializing...");
 
-            mainWindow = new MainWindow(iconOnUrl, iconOffUrl, config, this)
+            mainWindow = new MainWindow(iconOnUrl, iconOffUrl, config, wrathStateManager, textureManager)
             {
                 IsOpen = ClientState.IsLoggedIn // Show only if logged in
             };
@@ -79,10 +82,9 @@ namespace WrathIcon
             RegisterWindow(mainWindow);
             RegisterWindow(configWindow);
 
-            wrathStateChecker = new WrathStateChecker(this);
-            ChatGui.ChatMessage += wrathStateChecker.ChatMessageHandler;
+            ChatGui.ChatMessage += HandleChatMessage;
 
-            wrathStateChecker.OnWrathStateChanged += state =>
+            wrathStateManager.OnWrathStateChanged += state =>
             {
                 PluginLog.Debug($"WrathStateChecker.OnWrathStateChanged triggered with state: {(state ? "Enabled" : "Disabled")}");
                 mainWindow.UpdateWrathState(state);
@@ -102,6 +104,18 @@ namespace WrathIcon
             PluginLog.Information("Plugin initialized.");
         }
 
+        private void OnTerritoryChanged(ushort territoryId)
+        {
+            PluginLog.Debug($"Territory changed to: {territoryId}");
+
+            // Ensure the MainWindow is reopened when changing areas
+            if (mainWindow != null && !mainWindow.IsOpen)
+            {
+                PluginLog.Debug("Reopening MainWindow due to territory change.");
+                mainWindow.IsOpen = true;
+            }
+        }
+
         private void RegisterWindow(Window window)
         {
             PluginLog.Debug($"Registering window: {window.WindowName}");
@@ -112,7 +126,6 @@ namespace WrathIcon
         {
             PluginLog.Debug("Login detected.");
 
-            // Ensure the main window is shown upon login
             if (mainWindow != null)
             {
                 mainWindow.IsOpen = true;
@@ -124,7 +137,6 @@ namespace WrathIcon
         {
             PluginLog.Debug($"Logout detected. Type: {type}, Code: {code}");
 
-            // Ensure the main window is hidden upon logout
             if (mainWindow != null)
             {
                 mainWindow.IsOpen = false;
@@ -136,6 +148,14 @@ namespace WrathIcon
         {
             PluginLog.Debug("Command triggered to toggle ConfigWindow.");
             configWindow.Toggle();
+        }
+
+        private void HandleChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
+        {
+            PluginLog.Debug($"Chat message received. Type: {type}, Message: {message.TextValue}");
+
+            // Forward the message to the WrathStateManager
+            wrathStateManager.HandleChatMessage(message.TextValue);
         }
 
         private async void InitializeWrathState()
@@ -161,51 +181,9 @@ namespace WrathIcon
                 mainWindow.Toggle();
         }
 
-        public void UpdateWrathState(bool isEnabled)
-        {
-            PluginLog.Debug($"Plugin.UpdateWrathState called with state: {(isEnabled ? "Enabled" : "Disabled")}");
-            mainWindow.UpdateWrathState(isEnabled);
-        }
-
         private void DrawUI()
         {
             WindowSystem.Draw();
-        }
-
-        public static async Task<IDalamudTextureWrap?> LoadTextureAsync(string path)
-        {
-            if (TextureCache.TryGetValue(path, out var cachedTexture))
-            {
-                return cachedTexture;
-            }
-
-            PluginLog.Information($"[Debug] Loading texture from: {path}");
-
-            try
-            {
-                if (path.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                {
-                    var response = await httpClient.GetAsync(path);
-                    response.EnsureSuccessStatusCode();
-                    var imageBytes = await response.Content.ReadAsByteArrayAsync();
-
-                    var texture = TextureProvider.CreateFromImageAsync(imageBytes).Result as IDalamudTextureWrap;
-                    TextureCache[path] = texture;
-                    return texture;
-                }
-                else if (File.Exists(path))
-                {
-                    var texture = TextureProvider.GetFromFile(path) as IDalamudTextureWrap;
-                    TextureCache[path] = texture;
-                    return texture;
-                }
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error($"[Debug] Error loading texture: {ex.Message}");
-            }
-
-            return null;
         }
 
         public void Dispose()
@@ -213,18 +191,11 @@ namespace WrathIcon
             PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigWindow;
             PluginInterface.UiBuilder.OpenMainUi -= OpenMainWindow;
 
-            ChatGui.ChatMessage -= wrathStateChecker.ChatMessageHandler;
+            ChatGui.ChatMessage -= HandleChatMessage;
 
             ClientState.Login -= OnLogin;
             ClientState.Logout -= OnLogout;
-
-            foreach (var texture in TextureCache.Values)
-            {
-                if (texture is IDalamudTextureWrap wrap)
-                {
-                    wrap.Dispose();
-                }
-            }
+            ClientState.TerritoryChanged -= OnTerritoryChanged;
 
             CommandManager.RemoveHandler(CommandName);
             PluginInterface.UiBuilder.Draw -= DrawUI;

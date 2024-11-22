@@ -1,10 +1,9 @@
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using System;
+using WrathIcon.Core;
 
 namespace WrathIcon
 {
-    public class WrathStateChecker
+    public class WrathStateChecker : IWrathStateManager
     {
         private readonly Plugin plugin; // Reference to the plugin
         private bool isWrathEnabled = false; // Current Wrath state
@@ -16,26 +15,22 @@ namespace WrathIcon
             this.plugin = plugin;
         }
 
-        /// <summary>
-        /// Handles chat messages to toggle Wrath state.
-        /// </summary>
-        public void ChatMessageHandler(XivChatType type, int a2, ref SeString sender, ref SeString message, ref bool isHandled)
+        public void HandleChatMessage(string message)
         {
-            Plugin.PluginLog.Debug($"ChatMessageHandler triggered with type: {type}, message: {message.TextValue}");
+            Plugin.PluginLog.Debug($"WrathStateChecker.HandleChatMessage triggered with message: {message}");
 
-            if (message.TextValue.Contains("Auto-Rotation set to ON"))
+            if (message.Contains("Auto-Rotation set to ON"))
             {
                 SetWrathState(true);
             }
-            else if (message.TextValue.Contains("Auto-Rotation set to OFF"))
+            else if (message.Contains("Auto-Rotation set to OFF"))
             {
                 SetWrathState(false);
             }
         }
 
-        /// <summary>
-        /// Sets the Wrath state and triggers an event.
-        /// </summary>
+        public bool IsWrathEnabled() => isWrathEnabled;
+
         private void SetWrathState(bool isEnabled)
         {
             if (isWrathEnabled != isEnabled)
@@ -47,7 +42,5 @@ namespace WrathIcon
                 OnWrathStateChanged?.Invoke(isWrathEnabled);
             }
         }
-
-        public bool IsWrathEnabled() => isWrathEnabled;
     }
 }
