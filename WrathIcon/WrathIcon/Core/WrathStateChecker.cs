@@ -5,8 +5,8 @@ namespace WrathIcon
 {
     public class WrathStateChecker : IWrathStateManager
     {
-        private readonly Plugin plugin; // Reference to the plugin
-        private bool isWrathEnabled = false; // Current Wrath state
+        private readonly Plugin plugin; 
+        private bool isWrathEnabled = false; 
 
         public event Action<bool>? OnWrathStateChanged;
 

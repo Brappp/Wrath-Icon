@@ -39,14 +39,11 @@ namespace WrathIcon
 
         public Plugin()
         {
-            // Subscribe to the Framework Update event to delay initialization
             Framework.Update += OnFrameworkUpdate;
 
-            // Subscribe to login and logout events
             ClientState.Login += OnLogin;
             ClientState.Logout += OnLogout;
 
-            // Subscribe to territory changes
             ClientState.TerritoryChanged += OnTerritoryChanged;
         }
 
@@ -75,7 +72,7 @@ namespace WrathIcon
 
             mainWindow = new MainWindow(iconOnUrl, iconOffUrl, config, wrathStateManager, textureManager)
             {
-                IsOpen = ClientState.IsLoggedIn // Show only if logged in
+                IsOpen = ClientState.IsLoggedIn 
             };
             configWindow = new ConfigWindow(config);
 
@@ -108,7 +105,6 @@ namespace WrathIcon
         {
             PluginLog.Debug($"Territory changed to: {territoryId}");
 
-            // Ensure the MainWindow is reopened when changing areas
             if (mainWindow != null && !mainWindow.IsOpen)
             {
                 PluginLog.Debug("Reopening MainWindow due to territory change.");
@@ -154,7 +150,6 @@ namespace WrathIcon
         {
             PluginLog.Debug($"Chat message received. Type: {type}, Message: {message.TextValue}");
 
-            // Forward the message to the WrathStateManager
             wrathStateManager.HandleChatMessage(message.TextValue);
         }
 
