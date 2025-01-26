@@ -23,13 +23,9 @@ namespace WrathIcon
             this.wrathStateManager = wrathStateManager;
             this.textureManager = textureManager;
 
-            // Load the textures for the on/off states
             LoadTextures(iconOnUrl, iconOffUrl);
 
-            // Ensure the window is always open
             IsOpen = true;
-
-            // Prevent closing the window with the close hotkey
             RespectCloseHotkey = false;
         }
 
@@ -53,31 +49,34 @@ namespace WrathIcon
 
         public override void Draw()
         {
-            Vector2 windowSize = new Vector2(config.SelectedImageSize + 20, config.SelectedImageSize + 20);
-            Vector2 targetCenter = new Vector2(config.WindowX, config.WindowY);
+            Vector2 iconSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
+            Vector2 windowSize = iconSize + new Vector2(20, 20);
 
             if (!config.IsLocked)
             {
                 Vector2 currentWindowPos = ImGui.GetWindowPos();
                 Vector2 currentWindowSize = ImGui.GetWindowSize();
-                targetCenter = currentWindowPos + (currentWindowSize * 0.5f);
-                config.WindowX = targetCenter.X;
-                config.WindowY = targetCenter.Y;
+                Vector2 currentCenter = currentWindowPos + (currentWindowSize * 0.5f);
+
+                config.WindowX = currentCenter.X;
+                config.WindowY = currentCenter.Y;
                 config.Save();
             }
             else
             {
-                Vector2 lockedPosition = targetCenter - (windowSize * 0.5f);
+                Vector2 lockedPosition = new Vector2(config.WindowX, config.WindowY) - (windowSize * 0.5f);
                 ImGui.SetNextWindowPos(lockedPosition, ImGuiCond.Always);
             }
 
-            ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
+            ImGui.SetNextWindowSize(windowSize);
 
-            if (config.IsLocked)
-            {
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
-            }
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(3, 3));
+
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.3f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.3f, 0.3f, 0.35f, 1.0f));
 
             ImGuiWindowFlags windowFlags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize |
                                            ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
@@ -94,7 +93,6 @@ namespace WrathIcon
 
                 if (currentIcon != null)
                 {
-                    Vector2 iconSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
                     Vector2 fixedPosition = (windowSize - iconSize) * 0.5f;
                     ImGui.SetCursorPos(fixedPosition);
 
@@ -121,16 +119,16 @@ namespace WrathIcon
                 }
                 else
                 {
+                    Vector2 loadingTextSize = new Vector2(100, 20);
+                    ImGui.SetCursorPos((windowSize - loadingTextSize) * 0.5f);
                     ImGui.Text("Loading...");
                 }
 
                 ImGui.End();
             }
 
-            if (config.IsLocked)
-            {
-                ImGui.PopStyleVar(2);
-            }
+            ImGui.PopStyleColor(3);
+            ImGui.PopStyleVar(3);
         }
     }
 }
