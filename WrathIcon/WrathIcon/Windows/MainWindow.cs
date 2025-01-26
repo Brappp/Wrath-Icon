@@ -23,9 +23,14 @@ namespace WrathIcon
             this.wrathStateManager = wrathStateManager;
             this.textureManager = textureManager;
 
+            // Load the textures for the on/off states
             LoadTextures(iconOnUrl, iconOffUrl);
 
-            IsOpen = true; // Always open the window
+            // Ensure the window is always open
+            IsOpen = true;
+
+            // Prevent closing the window with the close hotkey
+            RespectCloseHotkey = false;
         }
 
         private async void LoadTextures(string iconOnUrl, string iconOffUrl)
