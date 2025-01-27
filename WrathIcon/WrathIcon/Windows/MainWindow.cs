@@ -2,7 +2,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Textures.TextureWraps;
 using ImGuiNET;
 using System.Numerics;
-using WrathIcon.Core;
 using WrathIcon.Utilities;
 
 namespace WrathIcon
@@ -11,16 +10,13 @@ namespace WrathIcon
     {
         private IDalamudTextureWrap? iconOnTexture;
         private IDalamudTextureWrap? iconOffTexture;
-        private bool wrathState;
         private readonly Configuration config;
-        private readonly IWrathStateManager wrathStateManager;
         private readonly TextureManager textureManager;
 
-        public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, IWrathStateManager wrathStateManager, TextureManager textureManager)
+        public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, TextureManager textureManager)
             : base("WrathIconMainWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground)
         {
             this.config = config;
-            this.wrathStateManager = wrathStateManager;
             this.textureManager = textureManager;
 
             LoadTextures(iconOnUrl, iconOffUrl);
@@ -40,11 +36,6 @@ namespace WrathIcon
             {
                 Plugin.PluginLog.Error("Failed to load textures.");
             }
-        }
-
-        public void UpdateWrathState(bool isEnabled)
-        {
-            wrathState = isEnabled;
         }
 
         public override void Draw()
@@ -89,7 +80,7 @@ namespace WrathIcon
 
             if (ImGui.Begin("WrathIconMainWindow", windowFlags))
             {
-                var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
+                var currentIcon = Plugin.IsWrathEnabled ? iconOnTexture : iconOffTexture;
 
                 if (currentIcon != null)
                 {
