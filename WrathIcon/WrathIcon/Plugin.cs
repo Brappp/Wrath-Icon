@@ -65,12 +65,9 @@ namespace WrathIcon
             textureManager = new TextureManager(TextureProvider);
             wrathStateManager = new WrathStateChecker(this);
 
-            var iconOnUrl = "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/WrathIcon/Data/icon-on.png";
-            var iconOffUrl = "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/WrathIcon/Data/icon-off.png";
-
             PluginLog.Information("[Debug] Plugin initializing...");
 
-            mainWindow = new MainWindow(iconOnUrl, iconOffUrl, config, wrathStateManager, textureManager)
+            mainWindow = new MainWindow(config, wrathStateManager, textureManager)
             {
                 IsOpen = ClientState.IsLoggedIn 
             };

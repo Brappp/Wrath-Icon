@@ -12,4 +12,11 @@
         <UseWindowsForms>true</UseWindowsForms>
         <EnableWindowsTargeting>false</EnableWindowsTargeting>
     </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="data\icon-off.png" Link="images\icon-off.png"
+                 CopyToOutputDirectory="PreserveNewest" Visible="false" />
+        <Content Include="data\icon-on.png" Link="images\icon-on.png"
+                 CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    </ItemGroup>
 </Project>

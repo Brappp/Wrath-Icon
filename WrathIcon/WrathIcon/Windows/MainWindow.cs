@@ -1,7 +1,10 @@
+using System.IO;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Textures.TextureWraps;
 using ImGuiNET;
 using System.Numerics;
+using ECommons.DalamudServices;
+using ECommons.ImGuiMethods;
 using WrathIcon.Core;
 using WrathIcon.Utilities;
 
@@ -9,32 +12,36 @@ namespace WrathIcon
 {
     public class MainWindow : Window
     {
-        private IDalamudTextureWrap? iconOnTexture;
         private IDalamudTextureWrap? iconOffTexture;
+        private IDalamudTextureWrap? iconOnTexture;
         private bool wrathState;
         private readonly Configuration config;
         private readonly IWrathStateManager wrathStateManager;
         private readonly TextureManager textureManager;
 
-        public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, IWrathStateManager wrathStateManager, TextureManager textureManager)
+        public MainWindow(Configuration config, IWrathStateManager wrathStateManager, TextureManager textureManager)
             : base("WrathIconMainWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground)
         {
             this.config = config;
             this.wrathStateManager = wrathStateManager;
             this.textureManager = textureManager;
 
-            LoadTextures(iconOnUrl, iconOffUrl);
+            LoadTextures();
 
             IsOpen = true;
             RespectCloseHotkey = false;
         }
 
-        private async void LoadTextures(string iconOnUrl, string iconOffUrl)
+        private void LoadTextures()
         {
             try
             {
-                iconOnTexture = await textureManager.LoadTextureAsync(iconOnUrl);
-                iconOffTexture = await textureManager.LoadTextureAsync(iconOffUrl);
+                var assemblyPath = Svc.PluginInterface.AssemblyLocation.Directory?.FullName!;
+                var iconOffPath = Path.Combine(assemblyPath, "images\\icon-off.png");
+                var iconOnPath = Path.Combine(assemblyPath, "images\\icon-on.png");
+
+                ThreadLoadImageHandler.TryGetTextureWrap(iconOffPath, out iconOffTexture);
+                ThreadLoadImageHandler.TryGetTextureWrap(iconOnPath, out iconOnTexture);
             }
             catch
             {
