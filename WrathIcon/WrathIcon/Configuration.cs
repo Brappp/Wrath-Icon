@@ -10,7 +10,7 @@ public class Configuration : IPluginConfiguration
     public float WindowX { get; set; } = 100.0f; 
     public float WindowY { get; set; } = 100.0f; 
 
-    private IDalamudPluginInterface pluginInterface;
+    private IDalamudPluginInterface pluginInterface = null!;
 
     public void Initialize(IDalamudPluginInterface pluginInterface)
     {

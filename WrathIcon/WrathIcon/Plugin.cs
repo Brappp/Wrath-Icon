@@ -1,14 +1,9 @@
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
-using System;
-using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
-using Dalamud.Game;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.IoC;
+using ECommons;
 using WrathIcon.Core;
 using WrathIcon.Utilities;
 
@@ -19,11 +14,11 @@ namespace WrathIcon
         private const string CommandName = "/wrathicon";
         public readonly WindowSystem WindowSystem = new("Wrath Status Icon");
 
-        private MainWindow mainWindow;
-        private ConfigWindow configWindow;
-        private IWrathStateManager wrathStateManager;
-        private Configuration config;
-        private TextureManager textureManager;
+        private MainWindow mainWindow = null!;
+        private ConfigWindow configWindow = null!;
+        private Configuration config = null!;
+        private TextureManager textureManager = null!;
+        public static bool IsWrathEnabled => WrathIPC.AutoRotationState;
 
         private bool isInitialized = false;
 
@@ -31,14 +26,14 @@ namespace WrathIcon
         [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
         [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
-        [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
         [PluginService] internal static IFramework Framework { get; private set; } = null!;
         [PluginService] internal static IClientState ClientState { get; private set; } = null!;
 
         public string Name => "Wrath Status Icon";
 
-        public Plugin()
+        public Plugin(IDalamudPluginInterface pluginInterface)
         {
+            ECommonsMain.Init(pluginInterface, this);
             Framework.Update += OnFrameworkUpdate;
 
             ClientState.Login += OnLogin;
@@ -63,11 +58,11 @@ namespace WrathIcon
             config.Initialize(PluginInterface);
 
             textureManager = new TextureManager(TextureProvider);
-            wrathStateManager = new WrathStateChecker(this);
 
             PluginLog.Information("[Debug] Plugin initializing...");
 
             mainWindow = new MainWindow(config, wrathStateManager, textureManager)
+
             {
                 IsOpen = ClientState.IsLoggedIn 
             };
@@ -75,14 +70,6 @@ namespace WrathIcon
 
             RegisterWindow(mainWindow);
             RegisterWindow(configWindow);
-
-            ChatGui.ChatMessage += HandleChatMessage;
-
-            wrathStateManager.OnWrathStateChanged += state =>
-            {
-                PluginLog.Debug($"WrathStateChecker.OnWrathStateChanged triggered with state: {(state ? "Enabled" : "Disabled")}");
-                mainWindow.UpdateWrathState(state);
-            };
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -93,8 +80,6 @@ namespace WrathIcon
             PluginInterface.UiBuilder.OpenConfigUi += OpenConfigWindow;
             PluginInterface.UiBuilder.OpenMainUi += OpenMainWindow;
 
-            InitializeWrathState();
-
             PluginLog.Information("Plugin initialized.");
         }
 
@@ -102,7 +87,7 @@ namespace WrathIcon
         {
             PluginLog.Debug($"Territory changed to: {territoryId}");
 
-            if (mainWindow != null && !mainWindow.IsOpen)
+            if (!mainWindow.IsOpen)
             {
                 PluginLog.Debug("Reopening MainWindow due to territory change.");
                 mainWindow.IsOpen = true;
@@ -119,46 +104,22 @@ namespace WrathIcon
         {
             PluginLog.Debug("Login detected.");
 
-            if (mainWindow != null)
-            {
-                mainWindow.IsOpen = true;
-                PluginLog.Debug("MainWindow shown due to login.");
-            }
+            mainWindow.IsOpen = true;
+            PluginLog.Debug("MainWindow shown due to login.");
         }
 
         private void OnLogout(int type, int code)
         {
             PluginLog.Debug($"Logout detected. Type: {type}, Code: {code}");
 
-            if (mainWindow != null)
-            {
-                mainWindow.IsOpen = false;
-                PluginLog.Debug("MainWindow hidden due to logout.");
-            }
+            mainWindow.IsOpen = false;
+            PluginLog.Debug("MainWindow hidden due to logout.");
         }
 
         private void OnCommand(string command, string args)
         {
             PluginLog.Debug("Command triggered to toggle ConfigWindow.");
             configWindow.Toggle();
-        }
-
-        private void HandleChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
-        {
-            PluginLog.Debug($"Chat message received. Type: {type}, Message: {message.TextValue}");
-
-            wrathStateManager.HandleChatMessage(message.TextValue);
-        }
-
-        private async void InitializeWrathState()
-        {
-            PluginLog.Debug("Initializing Wrath state with /wrath auto command.");
-
-            CommandManager.ProcessCommand("/wrath auto");
-            await Task.Delay(500);
-            CommandManager.ProcessCommand("/wrath auto");
-
-            PluginLog.Debug("Wrath state initialization complete.");
         }
 
         private void OpenConfigWindow()
@@ -180,10 +141,10 @@ namespace WrathIcon
 
         public void Dispose()
         {
+            ECommonsMain.Dispose();
+
             PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigWindow;
             PluginInterface.UiBuilder.OpenMainUi -= OpenMainWindow;
-
-            ChatGui.ChatMessage -= HandleChatMessage;
 
             ClientState.Login -= OnLogin;
             ClientState.Logout -= OnLogout;
