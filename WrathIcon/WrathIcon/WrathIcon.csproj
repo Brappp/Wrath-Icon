@@ -12,4 +12,8 @@
         <UseWindowsForms>true</UseWindowsForms>
         <EnableWindowsTargeting>false</EnableWindowsTargeting>
     </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\ECommons\ECommons\ECommons.csproj" />
+    </ItemGroup>
 </Project>

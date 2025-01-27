@@ -9,6 +9,7 @@ using Dalamud.Game.ClientState;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.IoC;
+using ECommons;
 using WrathIcon.Core;
 using WrathIcon.Utilities;
 
@@ -37,8 +38,9 @@ namespace WrathIcon
 
         public string Name => "Wrath Status Icon";
 
-        public Plugin()
+        public Plugin(IDalamudPluginInterface pluginInterface)
         {
+            ECommonsMain.Init(pluginInterface, this);
             Framework.Update += OnFrameworkUpdate;
 
             ClientState.Login += OnLogin;
@@ -183,6 +185,8 @@ namespace WrathIcon
 
         public void Dispose()
         {
+            ECommonsMain.Dispose();
+
             PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigWindow;
             PluginInterface.UiBuilder.OpenMainUi -= OpenMainWindow;
 
