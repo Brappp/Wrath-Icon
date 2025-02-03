@@ -5,7 +5,7 @@ namespace WrathIcon.Core
     public interface IWrathStateManager
     {
         event Action<bool> OnWrathStateChanged;
-        void HandleChatMessage(string message);
+        void RefreshWrathState();
         bool IsWrathEnabled();
     }
 }

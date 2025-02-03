@@ -1,9 +1,10 @@
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface.Textures;
 using ImGuiNET;
 using System.Numerics;
 using WrathIcon.Core;
 using WrathIcon.Utilities;
+using Dalamud.Interface.Textures.TextureWraps;
 
 namespace WrathIcon
 {
@@ -13,23 +14,22 @@ namespace WrathIcon
         private IDalamudTextureWrap? iconOffTexture;
         private bool wrathState;
         private readonly Configuration config;
-        private readonly IWrathStateManager wrathStateManager;
         private readonly TextureManager textureManager;
+        private float lastCheckTime = 0f;
+        private const float CheckInterval = 1.5f; // Interval for state checking
 
-        public MainWindow(string iconOnUrl, string iconOffUrl, Configuration config, IWrathStateManager wrathStateManager, TextureManager textureManager)
+        public MainWindow(Configuration config, TextureManager textureManager)
             : base("WrathIconMainWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground)
         {
             this.config = config;
-            this.wrathStateManager = wrathStateManager;
             this.textureManager = textureManager;
 
-            // Load the textures for the on/off states
-            LoadTextures(iconOnUrl, iconOffUrl);
+            LoadTextures(
+                "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/WrathIcon/Data/icon-on.png",
+                "https://raw.githubusercontent.com/Brappp/Wrath_Auto_Tracker/main/WrathIcon/Data/icon-off.png"
+            );
 
-            // Ensure the window is always open
             IsOpen = true;
-
-            // Prevent closing the window with the close hotkey
             RespectCloseHotkey = false;
         }
 
@@ -39,6 +39,7 @@ namespace WrathIcon
             {
                 iconOnTexture = await textureManager.LoadTextureAsync(iconOnUrl);
                 iconOffTexture = await textureManager.LoadTextureAsync(iconOffUrl);
+                Plugin.PluginLog.Information("WrathIcon textures loaded successfully.");
             }
             catch
             {
@@ -46,78 +47,52 @@ namespace WrathIcon
             }
         }
 
-        public void UpdateWrathState(bool isEnabled)
-        {
-            wrathState = isEnabled;
-        }
-
         public override void Draw()
         {
             Vector2 windowSize = new Vector2(config.SelectedImageSize + 20, config.SelectedImageSize + 20);
             Vector2 targetCenter = new Vector2(config.WindowX, config.WindowY);
 
-            if (!config.IsLocked)
+            // Limit state checking to avoid frequent updates
+            float currentTime = (float)ImGui.GetTime();
+            if (currentTime - lastCheckTime > CheckInterval)
             {
-                Vector2 currentWindowPos = ImGui.GetWindowPos();
-                Vector2 currentWindowSize = ImGui.GetWindowSize();
-                targetCenter = currentWindowPos + (currentWindowSize * 0.5f);
-                config.WindowX = targetCenter.X;
-                config.WindowY = targetCenter.Y;
-                config.Save();
+                wrathState = WrathIPC.GetAutoRotationState();
+                lastCheckTime = currentTime;
             }
-            else
-            {
-                Vector2 lockedPosition = targetCenter - (windowSize * 0.5f);
-                ImGui.SetNextWindowPos(lockedPosition, ImGuiCond.Always);
-            }
+
+            var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
 
             ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
+            ImGui.SetNextWindowPos(targetCenter, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-            if (config.IsLocked)
+            if (ImGui.Begin("WrathIconMainWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize |
+                                                 ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
+                                                 ImGuiWindowFlags.NoBackground))
             {
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
-            }
-
-            ImGuiWindowFlags windowFlags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize |
-                                           ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
-                                           ImGuiWindowFlags.NoBackground;
-
-            if (config.IsLocked)
-            {
-                windowFlags |= ImGuiWindowFlags.NoMove;
-            }
-
-            if (ImGui.Begin("WrathIconMainWindow", windowFlags))
-            {
-                var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
-
                 if (currentIcon != null)
                 {
-                    Vector2 iconSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
-                    Vector2 fixedPosition = (windowSize - iconSize) * 0.5f;
+                    Vector2 baseSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
+                    Vector2 scaledSize = baseSize;
+
+                    // Apply scaling when hovered or clicked
+                    if (ImGui.IsItemHovered()) scaledSize *= 1.1f;
+                    if (ImGui.IsItemActive()) scaledSize *= 1.05f;
+
+                    // Center icon
+                    Vector2 fixedPosition = (windowSize - scaledSize) * 0.5f;
                     ImGui.SetCursorPos(fixedPosition);
 
-                    if (ImGui.ImageButton(currentIcon.ImGuiHandle, iconSize))
+                    // Transparent button styles
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(1.0f, 1.0f, 1.0f, 0.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1.0f, 1.0f, 1.0f, 0.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 1.0f, 1.0f, 0.0f));
+
+                    if (ImGui.ImageButton(currentIcon.ImGuiHandle, scaledSize))
                     {
-                        if (config.IsLocked)
-                        {
-                            Plugin.CommandManager.ProcessCommand("/wrath auto");
-                        }
+                        WrathAutoManager.ToggleWrathAuto();
                     }
 
-                    if (!config.IsLocked)
-                    {
-                        ImGui.SetItemAllowOverlap();
-                        if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-                        {
-                            Vector2 dragDelta = ImGui.GetMouseDragDelta(ImGuiMouseButton.Left);
-                            config.WindowX += dragDelta.X;
-                            config.WindowY += dragDelta.Y;
-                            ImGui.ResetMouseDragDelta();
-                            config.Save();
-                        }
-                    }
+                    ImGui.PopStyleColor(3); 
                 }
                 else
                 {
@@ -125,11 +100,6 @@ namespace WrathIcon
                 }
 
                 ImGui.End();
-            }
-
-            if (config.IsLocked)
-            {
-                ImGui.PopStyleVar(2);
             }
         }
     }
