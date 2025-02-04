@@ -6,6 +6,8 @@ using WrathIcon.Utilities;
 using Dalamud.IoC;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.Command;
+using Dalamud.Game;
+using System.Linq;
 
 namespace WrathIcon
 {
@@ -19,11 +21,14 @@ namespace WrathIcon
         private Configuration config;
         private TextureManager textureManager;
 
+        private bool isInitialized = false;
+
         [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
         [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
         [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
         [PluginService] internal static IClientState ClientState { get; private set; } = null!;
+        [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
         public string Name => "Wrath Status Icon";
 
@@ -32,16 +37,43 @@ namespace WrathIcon
             PluginLog.Information("Initializing WrathIcon Plugin...");
 
             WrathIPC.Init(PluginInterface);
-
             if (WrathIPC.IsInitialized)
                 PluginLog.Information("WrathIPC initialized successfully.");
             else
                 PluginLog.Error("WrathIPC failed to initialize.");
 
-            Initialize();
+            if (ClientState.IsLoggedIn)
+            {
+                PluginLog.Debug("Already logged in at plugin load, initializing.");
+                Initialize();
+                isInitialized = true;
+
+                if (mainWindow != null)
+                {
+                    mainWindow.IsOpen = true;
+                    PluginLog.Debug("Main window opened at plugin load.");
+                }
+            }
+            else
+            {
+                PluginLog.Debug("Not logged in at plugin load, waiting for login.");
+                Framework.Update += OnFrameworkUpdate;
+            }
 
             ClientState.Login += OnLogin;
             ClientState.Logout += OnLogout;
+            PluginInterface.UiBuilder.OpenConfigUi += OpenConfigWindow;
+        }
+
+        private void OnFrameworkUpdate(IFramework framework)
+        {
+            if (ClientState.IsLoggedIn && !isInitialized)
+            {
+                PluginLog.Debug("Login detected via framework update, initializing.");
+                Initialize();
+                isInitialized = true;
+                Framework.Update -= OnFrameworkUpdate;
+            }
         }
 
         private void Initialize()
@@ -50,11 +82,18 @@ namespace WrathIcon
             config.Initialize(PluginInterface);
 
             textureManager = new TextureManager(TextureProvider);
-            mainWindow = new MainWindow(config, textureManager);
-            configWindow = new ConfigWindow(config);
 
-            WindowSystem.AddWindow(mainWindow);
-            WindowSystem.AddWindow(configWindow);
+            if (mainWindow == null)
+            {
+                mainWindow = new MainWindow(config, textureManager) { IsOpen = false };
+                WindowSystem.AddWindow(mainWindow);
+            }
+
+            if (configWindow == null)
+            {
+                configWindow = new ConfigWindow(config);
+                WindowSystem.AddWindow(configWindow);
+            }
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -63,54 +102,89 @@ namespace WrathIcon
 
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenMainUi += OpenMainWindow;
-            PluginInterface.UiBuilder.OpenConfigUi += OpenConfigWindow;
 
-            PluginLog.Information("Plugin initialized.");
-        }
-
-        private void OnLogin()
-        {
-            PluginLog.Information("Player logged in - Opening MainWindow.");
-            mainWindow.IsOpen = true;
-        }
-
-        private void OnLogout(int type, int code)
-        {
-            PluginLog.Information("Player logged out - Closing MainWindow.");
-            mainWindow.IsOpen = false;
-        }
-
-        private void OnCommand(string command, string args)
-        {
-            mainWindow.IsOpen = !mainWindow.IsOpen;
-        }
-
-        private void OpenMainWindow()
-        {
-            mainWindow.IsOpen = true;
+            PluginLog.Information("WrathIcon Plugin initialized.");
         }
 
         private void OpenConfigWindow()
         {
-            configWindow.IsOpen = true;
+            if (configWindow != null)
+            {
+                configWindow.IsOpen = true;
+                PluginLog.Debug("Config window opened.");
+            }
+        }
+
+        private void OpenMainWindow()
+        {
+            if (mainWindow != null)
+            {
+                mainWindow.IsOpen = true;
+                PluginLog.Debug("Main window opened.");
+            }
+        }
+
+        private void OnLogin()
+        {
+            PluginLog.Debug("Login detected.");
+
+            if (!isInitialized)
+            {
+                Initialize();
+                isInitialized = true;
+            }
+
+            if (mainWindow != null)
+            {
+                mainWindow.IsOpen = true;
+                PluginLog.Debug("Main window opened on login.");
+            }
+            else
+            {
+                PluginLog.Error("Main window is null on login.");
+            }
+        }
+
+        private void OnLogout(int type, int code)
+        {
+            PluginLog.Debug($"Logout detected. Type: {type}, Code: {code}");
+
+            if (mainWindow != null)
+            {
+                mainWindow.IsOpen = false;
+                PluginLog.Debug("Main window closed due to logout.");
+            }
+        }
+
+        private void OnCommand(string command, string args)
+        {
+            if (mainWindow != null)
+            {
+                mainWindow.IsOpen = !mainWindow.IsOpen;
+            }
         }
 
         private void DrawUI()
         {
+            PluginLog.Debug("Drawing WrathIcon UI...");
             WindowSystem.Draw();
         }
 
         public void Dispose()
         {
-            ClientState.Login -= OnLogin;
-            ClientState.Logout -= OnLogout;
-
-            CommandManager.RemoveHandler(CommandName);
             PluginInterface.UiBuilder.Draw -= DrawUI;
             PluginInterface.UiBuilder.OpenMainUi -= OpenMainWindow;
             PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigWindow;
 
+            CommandManager.RemoveHandler(CommandName);
+
+            ClientState.Login -= OnLogin;
+            ClientState.Logout -= OnLogout;
+            Framework.Update -= OnFrameworkUpdate;
+
             WindowSystem.RemoveAllWindows();
+
+            PluginLog.Information("WrathIcon Plugin disposed.");
         }
     }
 }
