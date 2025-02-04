@@ -44,19 +44,16 @@ namespace WrathIcon
 
             if (ClientState.IsLoggedIn)
             {
-                PluginLog.Debug("Already logged in at plugin load, initializing.");
+                PluginLog.Debug("Logged in at plugin load, initializing.");
                 Initialize();
                 isInitialized = true;
 
-                if (mainWindow != null)
-                {
+                if (mainWindow != null && !mainWindow.IsOpen)
                     mainWindow.IsOpen = true;
-                    PluginLog.Debug("Main window opened at plugin load.");
-                }
             }
             else
             {
-                PluginLog.Debug("Not logged in at plugin load, waiting for login.");
+                PluginLog.Debug("Waiting for login...");
                 Framework.Update += OnFrameworkUpdate;
             }
 
@@ -103,70 +100,52 @@ namespace WrathIcon
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenMainUi += OpenMainWindow;
 
-            PluginLog.Information("WrathIcon Plugin initialized.");
+            PluginLog.Information("WrathIcon Plugin fully initialized.");
         }
 
         private void OpenConfigWindow()
         {
             if (configWindow != null)
-            {
                 configWindow.IsOpen = true;
-                PluginLog.Debug("Config window opened.");
-            }
         }
 
         private void OpenMainWindow()
         {
-            if (mainWindow != null)
-            {
+            if (mainWindow != null && !mainWindow.IsOpen)
                 mainWindow.IsOpen = true;
-                PluginLog.Debug("Main window opened.");
-            }
         }
 
         private void OnLogin()
         {
-            PluginLog.Debug("Login detected.");
-
             if (!isInitialized)
             {
+                PluginLog.Information("Login detected, initializing plugin.");
                 Initialize();
                 isInitialized = true;
             }
 
-            if (mainWindow != null)
-            {
+            if (mainWindow != null && !mainWindow.IsOpen)
                 mainWindow.IsOpen = true;
-                PluginLog.Debug("Main window opened on login.");
-            }
-            else
-            {
-                PluginLog.Error("Main window is null on login.");
-            }
         }
 
         private void OnLogout(int type, int code)
         {
-            PluginLog.Debug($"Logout detected. Type: {type}, Code: {code}");
+            PluginLog.Information($"Logout detected. Type: {type}, Code: {code}");
 
-            if (mainWindow != null)
-            {
+            if (mainWindow != null && mainWindow.IsOpen)
                 mainWindow.IsOpen = false;
-                PluginLog.Debug("Main window closed due to logout.");
-            }
+
+            isInitialized = false; 
         }
 
         private void OnCommand(string command, string args)
         {
             if (mainWindow != null)
-            {
                 mainWindow.IsOpen = !mainWindow.IsOpen;
-            }
         }
 
         private void DrawUI()
         {
-            PluginLog.Debug("Drawing WrathIcon UI...");
             WindowSystem.Draw();
         }
 
