@@ -48,8 +48,10 @@ namespace WrathIcon
                 Initialize();
                 isInitialized = true;
 
-                if (mainWindow != null && !mainWindow.IsOpen)
-                    mainWindow.IsOpen = true;
+                if (mainWindow != null)
+                {
+                    mainWindow.SetOpen(true); // Ensure UI is visible
+                }
             }
             else
             {
@@ -82,7 +84,7 @@ namespace WrathIcon
 
             if (mainWindow == null)
             {
-                mainWindow = new MainWindow(config, textureManager) { IsOpen = false };
+                mainWindow = new MainWindow(config, textureManager);
                 WindowSystem.AddWindow(mainWindow);
             }
 
@@ -111,8 +113,10 @@ namespace WrathIcon
 
         private void OpenMainWindow()
         {
-            if (mainWindow != null && !mainWindow.IsOpen)
-                mainWindow.IsOpen = true;
+            if (mainWindow != null)
+            {
+                mainWindow.SetOpen(true);
+            }
         }
 
         private void OnLogin()
@@ -124,24 +128,31 @@ namespace WrathIcon
                 isInitialized = true;
             }
 
-            if (mainWindow != null && !mainWindow.IsOpen)
-                mainWindow.IsOpen = true;
+            if (mainWindow != null)
+            {
+                mainWindow.SetOpen(true);
+            }
         }
 
         private void OnLogout(int type, int code)
         {
             PluginLog.Information($"Logout detected. Type: {type}, Code: {code}");
 
-            if (mainWindow != null && mainWindow.IsOpen)
-                mainWindow.IsOpen = false;
+            if (mainWindow != null)
+            {
+                mainWindow.SetOpen(false);
+            }
 
-            isInitialized = false; 
+            isInitialized = false;
         }
 
         private void OnCommand(string command, string args)
         {
             if (mainWindow != null)
-                mainWindow.IsOpen = !mainWindow.IsOpen;
+            {
+                bool newState = !mainWindow.IsOpen;
+                mainWindow.SetOpen(newState);
+            }
         }
 
         private void DrawUI()
