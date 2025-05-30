@@ -228,7 +228,7 @@ namespace WrathIcon.Windows
 
             ImGui.PopStyleColor(3);
 
-            if (ImGui.IsItemHovered())
+            if (config.ShowTooltips && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip($"Auto-Rotation: {(wrathState ? "Enabled" : "Disabled")}\nClick to toggle");
             }
@@ -279,7 +279,7 @@ namespace WrathIcon.Windows
             ImGui.PopStyleVar();
             ImGui.PopStyleColor(3);
 
-            if (ImGui.IsItemHovered())
+            if (config.ShowTooltips && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip($"Auto-Rotation: {(wrathState ? "Enabled" : "Disabled")}\nClick to toggle");
             }

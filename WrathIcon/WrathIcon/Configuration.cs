@@ -16,6 +16,7 @@ namespace WrathIcon
         [JsonProperty] public float WindowX { get; set; } = Constants.DefaultWindowX;
         [JsonProperty] public float WindowY { get; set; } = Constants.DefaultWindowY;
         public bool AutoShowOnLogin { get; set; } = true;
+        public bool ShowTooltips { get; set; } = true;
 
         [NonSerialized]
         private IDalamudPluginInterface? pluginInterface;

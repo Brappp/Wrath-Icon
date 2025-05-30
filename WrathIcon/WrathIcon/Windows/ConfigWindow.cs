@@ -54,7 +54,7 @@ namespace WrathIcon.Windows
                 config.SetImageSize(Constants.AvailableIconSizes[currentIndex]);
             }
 
-            if (ImGui.IsItemHovered())
+            if (config.ShowTooltips && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Choose the size of the Wrath icon displayed on the UI.");
             }
@@ -71,7 +71,7 @@ namespace WrathIcon.Windows
                 config.SetLocked(isLocked);
             }
 
-            if (ImGui.IsItemHovered())
+            if (config.ShowTooltips && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Lock the window in place to prevent accidental movement.");
             }
@@ -83,7 +83,7 @@ namespace WrathIcon.Windows
                 Logger.Info("Window position reset to default");
             }
 
-            if (ImGui.IsItemHovered())
+            if (config.ShowTooltips && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Reset the window position to the default location.");
             }
@@ -101,9 +101,22 @@ namespace WrathIcon.Windows
                 config.Save();
             }
 
-            if (ImGui.IsItemHovered())
+            if (config.ShowTooltips && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Automatically show the icon when you log into the game.");
+            }
+
+            // Show tooltips checkbox
+            bool showTooltips = config.ShowTooltips;
+            if (ImGui.Checkbox("Show Tooltips", ref showTooltips))
+            {
+                config.ShowTooltips = showTooltips;
+                config.Save();
+            }
+
+            if (config.ShowTooltips && ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Enable or disable helpful tooltips throughout the interface.");
             }
         }
 
@@ -113,6 +126,7 @@ namespace WrathIcon.Windows
             ImGui.Text($"Position: ({config.WindowX:F1}, {config.WindowY:F1})");
             ImGui.Text($"Icon Size: {config.SelectedImageSize}x{config.SelectedImageSize}");
             ImGui.Text($"Window Locked: {(config.IsLocked ? "Yes" : "No")}");
+            ImGui.Text($"Tooltips: {(config.ShowTooltips ? "Enabled" : "Disabled")}");
         }
 
         public void Dispose()
