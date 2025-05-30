@@ -3,7 +3,7 @@
 
     <PropertyGroup>
         <TargetFramework>net9.0-windows</TargetFramework>
-        <Version>0.0.0.12</Version>
+        <Version>0.0.0.13</Version>
         <Description>WrathIcon</Description>
         <PackageProjectUrl>https://github.com/Brappp/Wrath_Auto_Tracker</PackageProjectUrl>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
