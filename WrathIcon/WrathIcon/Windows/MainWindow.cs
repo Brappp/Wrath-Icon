@@ -1,6 +1,6 @@
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Textures.TextureWraps;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 using WrathIcon.Core.Services;
 using WrathIcon.Utilities;
@@ -261,7 +261,7 @@ namespace WrathIcon.Windows
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 1.0f, 1.0f, 0.2f));
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, Vector2.Zero);
 
-            if (ImGui.ImageButton(currentIcon.ImGuiHandle, iconSize))
+            if (ImGui.ImageButton(currentIcon.Handle, iconSize))
             {
                 _ = Task.Run(async () =>
                 {
