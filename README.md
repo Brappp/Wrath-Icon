@@ -1,1 +1,1 @@
-https://puni.sh/api/repository/wah
+Repo URL: https://puni.sh/api/repository/wah
