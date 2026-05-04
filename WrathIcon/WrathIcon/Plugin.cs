@@ -33,6 +33,8 @@ namespace WrathIcon
         [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
         [PluginService] internal static IClientState ClientState { get; private set; } = null!;
         [PluginService] internal static IFramework Framework { get; private set; } = null!;
+        [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+        [PluginService] internal static ICondition Condition { get; private set; } = null!;
 
         public string Name => Constants.PluginName;
 
@@ -187,8 +189,7 @@ namespace WrathIcon
         {
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenMainUi += OpenMainWindow;
-            PluginInterface.UiBuilder.OpenConfigUi += OpenConfigWindow;
-            
+
             Logger.Debug("UI handlers registered");
         }
 

@@ -1,7 +1,6 @@
 using System;
 using Dalamud.Configuration;
 using Dalamud.Plugin;
-using Newtonsoft.Json;
 using WrathIcon.Utilities;
 
 namespace WrathIcon
@@ -10,19 +9,17 @@ namespace WrathIcon
     public class Configuration : IPluginConfiguration
     {
         public int Version { get; set; } = 1;
-        
-        [JsonProperty] public bool IsLocked { get; set; } = false;
-        [JsonProperty] public int SelectedImageSize { get; set; } = Constants.DefaultIconSize;
-        [JsonProperty] public float WindowX { get; set; } = Constants.DefaultWindowX;
-        [JsonProperty] public float WindowY { get; set; } = Constants.DefaultWindowY;
+
+        public bool IsLocked { get; set; } = false;
+        public int SelectedImageSize { get; set; } = Constants.DefaultIconSize;
+        public float WindowX { get; set; } = Constants.DefaultWindowX;
+        public float WindowY { get; set; } = Constants.DefaultWindowY;
         public bool AutoShowOnLogin { get; set; } = true;
         public bool ShowTooltips { get; set; } = true;
+        public bool ShowBurstButton { get; set; } = false;
 
         [NonSerialized]
         private IDalamudPluginInterface? pluginInterface;
-
-        // Events for configuration changes
-        public event Action<Configuration>? ConfigurationChanged;
 
         public void Initialize(IDalamudPluginInterface pluginInterface)
         {
@@ -37,10 +34,8 @@ namespace WrathIcon
             }
 
             pluginInterface.SavePluginConfig(this);
-            ConfigurationChanged?.Invoke(this);
         }
 
-        // Helper methods for common operations
         public void SetWindowPosition(float x, float y)
         {
             WindowX = x;
@@ -50,13 +45,31 @@ namespace WrathIcon
 
         public void SetImageSize(int size)
         {
-            SelectedImageSize = Math.Max(Constants.MinIconSize, Math.Min(Constants.MaxIconSize, size));
+            SelectedImageSize = Math.Clamp(size, Constants.MinIconSize, Constants.MaxIconSize);
             Save();
         }
 
         public void SetLocked(bool locked)
         {
             IsLocked = locked;
+            Save();
+        }
+
+        public void SetAutoShowOnLogin(bool value)
+        {
+            AutoShowOnLogin = value;
+            Save();
+        }
+
+        public void SetShowTooltips(bool value)
+        {
+            ShowTooltips = value;
+            Save();
+        }
+
+        public void SetShowBurstButton(bool value)
+        {
+            ShowBurstButton = value;
             Save();
         }
     }

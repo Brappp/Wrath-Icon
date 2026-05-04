@@ -7,11 +7,18 @@ using WrathIcon.Utilities;
 using System;
 using System.Threading.Tasks;
 using Dalamud.Interface;
+using Dalamud.Interface.ManagedFontAtlas;
+using Dalamud.Game.ClientState.Conditions;
 
 namespace WrathIcon.Windows
 {
-    public class MainWindow : Window
+    public class MainWindow : Window, IDisposable
     {
+        private const ImGuiWindowFlags BaseFlags =
+            ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize |
+            ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
+            ImGuiWindowFlags.NoBackground;
+
         private IDalamudTextureWrap? iconOnTexture;
         private IDalamudTextureWrap? iconOffTexture;
         private bool wrathState;
@@ -19,22 +26,18 @@ namespace WrathIcon.Windows
         private readonly ITextureService textureService;
         private readonly IWrathService wrathService;
         private bool texturesLoaded = false;
+        private bool wasDragging = false;
+        private IFontHandle? scaledIconFont;
+        private int loadedIconFontSize = -1;
 
         public MainWindow(Configuration config, ITextureService textureService, IWrathService wrathService)
-            : base(Constants.MainWindowName,
-                   ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize |
-                   ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
-                   ImGuiWindowFlags.NoBackground)
+            : base(Constants.MainWindowName, BaseFlags)
         {
             this.config = config ?? throw new ArgumentNullException(nameof(config));
             this.textureService = textureService ?? throw new ArgumentNullException(nameof(textureService));
             this.wrathService = wrathService ?? throw new ArgumentNullException(nameof(wrathService));
 
-            // Subscribe to state changes
             this.wrathService.StateChanged += OnWrathStateChanged;
-            this.config.ConfigurationChanged += OnConfigurationChanged;
-
-            // Initialize current state
             wrathState = this.wrathService.IsAutoRotationEnabled;
 
             LoadTexturesAsync();
@@ -72,7 +75,7 @@ namespace WrathIcon.Windows
                     iconOnTexture = await onTextureTask;
                     iconOffTexture = await offTextureTask;
                     texturesLoaded = iconOnTexture != null && iconOffTexture != null;
-                    
+
                     if (texturesLoaded)
                     {
                         Logger.Info("Local textures loaded successfully");
@@ -82,14 +85,11 @@ namespace WrathIcon.Windows
                         Logger.Warning("Failed to load PNG textures, will use FontAwesome icons as fallback");
                     }
                 }
-
-                MarkDirty();
             }
             catch (Exception ex)
             {
                 Logger.Error("Failed to load local textures", ex);
                 texturesLoaded = false;
-                MarkDirty();
             }
         }
 
@@ -97,220 +97,208 @@ namespace WrathIcon.Windows
         {
             Logger.Debug($"Wrath state changed: {wrathState} -> {newState}");
             wrathState = newState;
-            MarkDirty();
         }
 
-        private void OnConfigurationChanged(Configuration newConfig)
+        public override bool DrawConditions()
         {
-            MarkDirty();
+            return !Plugin.Condition[ConditionFlag.WatchingCutscene]
+                && !Plugin.Condition[ConditionFlag.WatchingCutscene78]
+                && !Plugin.Condition[ConditionFlag.OccupiedInCutSceneEvent]
+                && !Plugin.Condition[ConditionFlag.BetweenAreas]
+                && !Plugin.Condition[ConditionFlag.BetweenAreas51]
+                && !Plugin.Condition[ConditionFlag.LoggingOut];
+        }
+
+        public override void PreDraw()
+        {
+            EnsureIconFont(config.SelectedImageSize);
+
+            Size = CalculateWindowSize();
+            SizeCondition = ImGuiCond.Always;
+
+            Position = new Vector2(config.WindowX, config.WindowY);
+            PositionCondition = ImGuiCond.Always;
+
+            Flags = config.IsLocked ? BaseFlags | ImGuiWindowFlags.NoMove : BaseFlags;
+
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
+        }
+
+        public override void PostDraw()
+        {
+            ImGui.PopStyleVar(2);
         }
 
         public override void Draw()
         {
-            if (!IsOpen) 
-                return;
+            var iconSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
 
-            var windowSize = CalculateWindowSize();
-            ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
-
-            // Set window position - use different conditions based on lock state
-            if (config.IsLocked)
-            {
-                // When locked, force the position to stay at the configured location
-                ImGui.SetNextWindowPos(new Vector2(config.WindowX, config.WindowY), ImGuiCond.Always);
-            }
+            if (texturesLoaded && iconOnTexture != null && iconOffTexture != null)
+                DrawAutoRotationImage(iconSize);
             else
+                DrawAutoRotationFontAwesome(iconSize);
+
+            HandleWindowDragging();
+
+            if (config.ShowBurstButton)
             {
-                // When unlocked, only set position on first use or if position changed
-                ImGui.SetNextWindowPos(new Vector2(config.WindowX, config.WindowY), ImGuiCond.FirstUseEver);
-            }
-
-            ImGuiWindowFlags windowFlags = ImGuiWindowFlags.NoDecoration |
-                                           ImGuiWindowFlags.NoResize |
-                                           ImGuiWindowFlags.NoScrollbar |
-                                           ImGuiWindowFlags.NoScrollWithMouse |
-                                           ImGuiWindowFlags.NoBackground;
-
-            // Add NoMove flag when locked
-            if (config.IsLocked)
-            {
-                windowFlags |= ImGuiWindowFlags.NoMove;
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
-            }
-
-            if (ImGui.Begin(Constants.MainWindowName, windowFlags))
-            {
-                // Update window position in config if not locked
-                if (!config.IsLocked)
-                {
-                    var currentPos = ImGui.GetWindowPos();
-                    if (Math.Abs(currentPos.X - config.WindowX) > 1.0f || Math.Abs(currentPos.Y - config.WindowY) > 1.0f)
-                    {
-                        config.SetWindowPosition(currentPos.X, currentPos.Y);
-                    }
-                }
-
-                if (texturesLoaded)
-                {
-                    DrawInterface();
-                }
-                else
-                {
-                    DrawFontAwesomeInterface();
-                }
-
-                ImGui.End();
-            }
-
-            if (config.IsLocked)
-            {
-                ImGui.PopStyleVar(2);
+                ImGui.SameLine();
+                DrawBurstButton(iconSize);
+                HandleWindowDragging();
             }
         }
 
         private Vector2 CalculateWindowSize()
         {
             var iconSize = config.SelectedImageSize;
-            var padding = 10f;
-            var baseHeight = iconSize + padding * 2;
-            
-            return new Vector2(iconSize + padding * 2, baseHeight);
+            var buttonCount = config.ShowBurstButton ? 2 : 1;
+            var spacing = (buttonCount - 1) * ImGui.GetStyle().ItemSpacing.X;
+
+            return new Vector2(
+                iconSize * buttonCount + spacing,
+                iconSize);
         }
 
-        private void DrawInterface()
+        private void TriggerAutoRotationToggle()
         {
-            var iconSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
-            
-            if (texturesLoaded && iconOnTexture != null && iconOffTexture != null)
+            _ = Task.Run(async () =>
             {
-                DrawMainIcon(iconSize);
-            }
-            else
-            {
-                // Use FontAwesome as immediate fallback while textures load or if they fail
-                DrawFontAwesomeInterface();
-            }
+                try { await wrathService.ToggleAutoRotationAsync(); }
+                catch (Exception ex) { Logger.Error("Failed to toggle auto-rotation", ex); }
+            });
         }
 
-        private void DrawFontAwesomeInterface()
+        private void DrawAutoRotationFontAwesome(Vector2 iconSize)
         {
-            // Use FontAwesome icons as fallback
-            var iconSize = new Vector2(config.SelectedImageSize, config.SelectedImageSize);
             var icon = wrathState ? FontAwesomeIcon.Play : FontAwesomeIcon.Stop;
-            var buttonColor = wrathState ? new Vector4(0.0f, 1.0f, 0.0f, 0.3f) : new Vector4(1.0f, 0.0f, 0.0f, 0.3f);
-            
-            // Center the icon
-            var availableWidth = ImGui.GetContentRegionAvail().X;
-            var iconPosX = (availableWidth - iconSize.X) * 0.5f;
-            if (iconPosX > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + iconPosX);
+            var tint = wrathState ? new Vector4(0.0f, 1.0f, 0.0f, 0.3f) : new Vector4(1.0f, 0.0f, 0.0f, 0.3f);
 
-            ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(buttonColor.X, buttonColor.Y, buttonColor.Z, buttonColor.W + 0.1f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(buttonColor.X, buttonColor.Y, buttonColor.Z, buttonColor.W + 0.2f));
-
-            ImGui.PushFont(UiBuilder.IconFont);
-            if (ImGui.Button(icon.ToIconString(), iconSize))
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await wrathService.ToggleAutoRotationAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error("Failed to toggle auto-rotation", ex);
-                    }
-                });
-            }
-            ImGui.PopFont();
-
-            ImGui.PopStyleColor(3);
+            if (DrawIconButton("##autorot", icon, iconSize, tint))
+                TriggerAutoRotationToggle();
 
             if (config.ShowTooltips && ImGui.IsItemHovered())
-            {
                 ImGui.SetTooltip($"Auto-Rotation: {(wrathState ? "Enabled" : "Disabled")}\nClick to toggle");
-            }
-
-            // Handle dragging if not locked
-            if (!config.IsLocked)
-            {
-                HandleWindowDragging();
-            }
         }
 
-        private void DrawMainIcon(Vector2 iconSize)
+        private void DrawAutoRotationImage(Vector2 iconSize)
         {
             var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
-            
-            if (currentIcon == null) 
+            if (currentIcon == null)
             {
                 Logger.Warning($"Icon texture is null! wrathState={wrathState}");
                 return;
             }
 
-            // Center the icon in its allocated space
-            var availableWidth = ImGui.GetContentRegionAvail().X;
-            var iconPosX = (availableWidth - iconSize.X) * 0.5f;
-            if (iconPosX > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + iconPosX);
-
-            // Make button transparent
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(1.0f, 1.0f, 1.0f, 0.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1.0f, 1.0f, 1.0f, 0.1f));
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 1.0f, 1.0f, 0.2f));
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, Vector2.Zero);
 
             if (ImGui.ImageButton(currentIcon.Handle, iconSize))
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await wrathService.ToggleAutoRotationAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error("Failed to toggle auto-rotation", ex);
-                    }
-                });
-            }
+                TriggerAutoRotationToggle();
 
             ImGui.PopStyleVar();
             ImGui.PopStyleColor(3);
 
             if (config.ShowTooltips && ImGui.IsItemHovered())
-            {
                 ImGui.SetTooltip($"Auto-Rotation: {(wrathState ? "Enabled" : "Disabled")}\nClick to toggle");
+        }
+
+        private void DrawBurstButton(Vector2 iconSize)
+        {
+            var burstHeld = wrathService.IsBurstHeld;
+            FontAwesomeIcon icon;
+            Vector4 tint;
+            string status;
+
+            if (burstHeld == true)
+            {
+                icon = FontAwesomeIcon.Pause;
+                tint = new Vector4(0.85f, 0.20f, 0.20f, 0.45f);
+                status = "Burst: HELD";
+            }
+            else if (burstHeld == false)
+            {
+                icon = FontAwesomeIcon.Fire;
+                tint = new Vector4(1.00f, 0.55f, 0.00f, 0.50f);
+                status = "Burst: ACTIVE";
+            }
+            else
+            {
+                icon = FontAwesomeIcon.Fire;
+                tint = new Vector4(0.40f, 0.40f, 0.40f, 0.30f);
+                status = "Burst: unknown (job not mapped or WrathCombo unavailable)";
             }
 
-            // Handle dragging if not locked
-            if (!config.IsLocked)
+            if (DrawIconButton("##burst", icon, iconSize, tint))
             {
-                HandleWindowDragging();
+                try { wrathService.ToggleBurst(); }
+                catch (Exception ex) { Logger.Error("Failed to toggle burst", ex); }
             }
+
+            if (config.ShowTooltips && ImGui.IsItemHovered())
+                ImGui.SetTooltip($"{status}\nClick to /wrath burst (experimental)");
+        }
+
+        private bool DrawIconButton(string id, FontAwesomeIcon icon, Vector2 size, Vector4 tint)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Button, tint);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(tint.X, tint.Y, tint.Z, Math.Min(1f, tint.W + 0.15f)));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(tint.X, tint.Y, tint.Z, Math.Min(1f, tint.W + 0.30f)));
+
+            bool clicked;
+            if (scaledIconFont is { Available: true })
+            {
+                using (scaledIconFont.Push())
+                    clicked = ImGui.Button(icon.ToIconString() + id, size);
+            }
+            else
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                clicked = ImGui.Button(icon.ToIconString() + id, size);
+                ImGui.PopFont();
+            }
+
+            ImGui.PopStyleColor(3);
+            return clicked;
+        }
+
+        private void EnsureIconFont(int targetButtonSize)
+        {
+            if (loadedIconFontSize == targetButtonSize && scaledIconFont != null)
+                return;
+
+            scaledIconFont?.Dispose();
+
+            var sizePx = MathF.Max(8f, targetButtonSize * 0.7f);
+            scaledIconFont = Plugin.PluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(
+                e => e.OnPreBuild(tk =>
+                {
+                    var cfg = new SafeFontConfig { SizePx = sizePx };
+                    tk.AddFontAwesomeIconFont(cfg);
+                }));
+            loadedIconFontSize = targetButtonSize;
         }
 
         private void HandleWindowDragging()
         {
-            // Don't handle dragging if window is locked
-            if (config.IsLocked) 
+            if (config.IsLocked)
                 return;
-                
-            // Only handle dragging on the icon itself
+
             if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
             {
                 Vector2 dragDelta = ImGui.GetMouseDragDelta(ImGuiMouseButton.Left);
-                var newX = config.WindowX + dragDelta.X;
-                var newY = config.WindowY + dragDelta.Y;
-                config.SetWindowPosition(newX, newY);
+                config.WindowX += dragDelta.X;
+                config.WindowY += dragDelta.Y;
                 ImGui.ResetMouseDragDelta();
+                wasDragging = true;
             }
-        }
-
-        public void MarkDirty()
-        {
-            // No longer needed since we always redraw, but keeping for compatibility
+            else if (wasDragging && !ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            {
+                config.Save();
+                wasDragging = false;
+            }
         }
 
         public void SetOpen(bool open)
@@ -319,14 +307,14 @@ namespace WrathIcon.Windows
             {
                 IsOpen = open;
                 Logger.Debug($"MainWindow visibility set to: {open}");
-                MarkDirty();
             }
         }
 
         public void Dispose()
         {
             wrathService.StateChanged -= OnWrathStateChanged;
-            config.ConfigurationChanged -= OnConfigurationChanged;
+            scaledIconFont?.Dispose();
+            scaledIconFont = null;
             Logger.Debug("MainWindow disposed");
         }
     }

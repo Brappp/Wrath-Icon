@@ -6,7 +6,7 @@ using WrathIcon.Utilities;
 
 namespace WrathIcon.Windows
 {
-    public class ConfigWindow : Window
+    public class ConfigWindow : Window, IDisposable
     {
         private readonly Configuration config;
 
@@ -97,8 +97,7 @@ namespace WrathIcon.Windows
             bool autoShow = config.AutoShowOnLogin;
             if (ImGui.Checkbox("Show on Login", ref autoShow))
             {
-                config.AutoShowOnLogin = autoShow;
-                config.Save();
+                config.SetAutoShowOnLogin(autoShow);
             }
 
             if (config.ShowTooltips && ImGui.IsItemHovered())
@@ -110,13 +109,24 @@ namespace WrathIcon.Windows
             bool showTooltips = config.ShowTooltips;
             if (ImGui.Checkbox("Show Tooltips", ref showTooltips))
             {
-                config.ShowTooltips = showTooltips;
-                config.Save();
+                config.SetShowTooltips(showTooltips);
             }
 
             if (config.ShowTooltips && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Enable or disable helpful tooltips throughout the interface.");
+            }
+
+            // Show burst button checkbox
+            bool showBurst = config.ShowBurstButton;
+            if (ImGui.Checkbox("Show Burst Button (experimental)", ref showBurst))
+            {
+                config.SetShowBurstButton(showBurst);
+            }
+
+            if (config.ShowTooltips && ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Show a second button that runs /wrath burst. Advanced Mode only.");
             }
         }
 

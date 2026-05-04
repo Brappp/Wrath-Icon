@@ -9,25 +9,20 @@ namespace WrathIcon.Core.Services
     {
         private readonly Timer stateCheckTimer;
         private bool lastKnownState;
+        private bool? lastKnownBurstHeld;
         private bool disposed = false;
 
         public bool IsAutoRotationEnabled => lastKnownState;
+        public bool? IsBurstHeld => lastKnownBurstHeld;
         public bool IsInitialized => WrathIPC.IsInitialized;
 
         public event Action<bool>? StateChanged;
+        public event Action<bool?>? BurstStateChanged;
 
         public WrathService()
         {
             Logger.Info("Initializing WrathService");
-            
-            // Initialize the current state
-            ThreadSafeExecutor.RunOnMainThread(() =>
-            {
-                lastKnownState = WrathIPC.GetAutoRotationState();
-            });
-
-            // Start monitoring state changes
-            stateCheckTimer = new Timer(CheckStateCallback, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(Constants.StateCheckIntervalMs));
+            stateCheckTimer = new Timer(CheckStateCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public void StartMonitoring()
@@ -100,7 +95,6 @@ namespace WrathIcon.Core.Services
 
             try
             {
-                // Check auto-rotation state
                 var currentState = WrathIPC.GetAutoRotationState();
                 if (currentState != lastKnownState)
                 {
@@ -108,11 +102,30 @@ namespace WrathIcon.Core.Services
                     lastKnownState = currentState;
                     StateChanged?.Invoke(currentState);
                 }
+
+                var jobId = Plugin.ObjectTable.LocalPlayer?.ClassJob.RowId;
+                var currentBurst = jobId.HasValue ? WrathIPC.IsBurstHeld(jobId.Value) : null;
+                if (currentBurst != lastKnownBurstHeld)
+                {
+                    lastKnownBurstHeld = currentBurst;
+                    BurstStateChanged?.Invoke(currentBurst);
+                }
             }
             catch (Exception ex)
             {
                 Logger.Error("Error checking Wrath state", ex);
             }
+        }
+
+        public void ToggleBurst()
+        {
+            if (!IsInitialized)
+            {
+                Logger.Warning("Attempted to toggle burst but IPC is not initialized");
+                return;
+            }
+
+            ThreadSafeExecutor.RunOnMainThread(() => ExecuteChatCommand(Constants.WrathBurstCommand));
         }
 
         private static void ExecuteChatCommand(string command)
@@ -137,6 +150,7 @@ namespace WrathIcon.Core.Services
             
             stateCheckTimer?.Dispose();
             StateChanged = null;
+            BurstStateChanged = null;
             disposed = true;
         }
     }

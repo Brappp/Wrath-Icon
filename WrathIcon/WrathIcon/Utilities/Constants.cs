@@ -13,35 +13,25 @@ namespace WrathIcon.Utilities
         public const string MainWindowName = "WrathIconMainWindow";
         public const string ConfigWindowName = "Wrath Icon Configuration";
         
-        // Local Texture Paths - using images directory like WrathCombo
-        public static string IconOnPath 
-        { 
-            get 
-            {
-                var assemblyDir = Plugin.PluginInterface.AssemblyLocation.Directory?.FullName ?? "";
-                var path = Path.Combine(assemblyDir, "images", "icon-on.png");
-                Logger.Debug($"IconOnPath: Assembly={assemblyDir}, Resolved={path}");
-                return path;
-            }
+        private static string? iconOnPath;
+        private static string? iconOffPath;
+
+        public static string IconOnPath => iconOnPath ??= ResolveIconPath("icon-on.png");
+        public static string IconOffPath => iconOffPath ??= ResolveIconPath("icon-off.png");
+
+        private static string ResolveIconPath(string fileName)
+        {
+            var assemblyDir = Plugin.PluginInterface.AssemblyLocation.Directory?.FullName ?? "";
+            return Path.Combine(assemblyDir, "images", fileName);
         }
-        
-        public static string IconOffPath 
-        { 
-            get 
-            {
-                var assemblyDir = Plugin.PluginInterface.AssemblyLocation.Directory?.FullName ?? "";
-                var path = Path.Combine(assemblyDir, "images", "icon-off.png");
-                Logger.Debug($"IconOffPath: Assembly={assemblyDir}, Resolved={path}");
-                return path;
-            }
-        }
-        
+
         // IPC Method Names for WrathCombo integration
         public const string IpcGetAutoRotationState = "WrathCombo.GetAutoRotationState";
-        public const string IpcSetAutoRotationState = "WrathCombo.SetAutoRotationState";
+        public const string IpcGetComboState = "WrathCombo.GetComboState";
         
         // Chat Commands
         public const string WrathAutoCommand = "/wrath auto";
+        public const string WrathBurstCommand = "/wrath burst";
         
         // Timing
         public const int StateCheckIntervalMs = 500;
