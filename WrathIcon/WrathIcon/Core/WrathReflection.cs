@@ -23,6 +23,13 @@ namespace WrathIcon.Core
             }
         }
 
+        public static void Reset()
+        {
+            initialized = false;
+            burstPresetsByJobId = null;
+            Logger.Debug("WrathReflection cache reset");
+        }
+
         private static void Initialize()
         {
             initialized = true;

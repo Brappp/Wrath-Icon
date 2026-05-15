@@ -41,11 +41,10 @@ namespace WrathIcon.Windows
         private void DrawIconSizeSettings()
         {
             ImGui.Text("Icon Settings");
-            
-            // Dropdown for selecting image size
+
             ImGui.Text("Icon Size:");
             int currentIndex = Array.IndexOf(Constants.AvailableIconSizes, config.SelectedImageSize);
-            if (currentIndex == -1) currentIndex = 2; // Default to 32 if not found
+            if (currentIndex == -1) currentIndex = 2;
             
             if (ImGui.Combo("##IconSizeDropdown", ref currentIndex, 
                 Constants.AvailableIconSizes.Select(s => $"{s}x{s}").ToArray(), 
@@ -63,8 +62,7 @@ namespace WrathIcon.Windows
         private void DrawWindowSettings()
         {
             ImGui.Text("Window Settings");
-            
-            // Lock/Unlock checkbox
+
             bool isLocked = config.IsLocked;
             if (ImGui.Checkbox("Lock Window Position", ref isLocked))
             {
@@ -76,7 +74,6 @@ namespace WrathIcon.Windows
                 ImGui.SetTooltip("Lock the window in place to prevent accidental movement.");
             }
 
-            // Reset position button
             if (ImGui.Button("Reset Window Position"))
             {
                 config.SetWindowPosition(Constants.DefaultWindowX, Constants.DefaultWindowY);
@@ -92,8 +89,7 @@ namespace WrathIcon.Windows
         private void DrawBehaviorSettings()
         {
             ImGui.Text("Behavior Settings");
-            
-            // Auto show on login
+
             bool autoShow = config.AutoShowOnLogin;
             if (ImGui.Checkbox("Show on Login", ref autoShow))
             {
@@ -105,7 +101,6 @@ namespace WrathIcon.Windows
                 ImGui.SetTooltip("Automatically show the icon when you log into the game.");
             }
 
-            // Show tooltips checkbox
             bool showTooltips = config.ShowTooltips;
             if (ImGui.Checkbox("Show Tooltips", ref showTooltips))
             {
@@ -117,7 +112,6 @@ namespace WrathIcon.Windows
                 ImGui.SetTooltip("Enable or disable helpful tooltips throughout the interface.");
             }
 
-            // Show burst button checkbox
             bool showBurst = config.ShowBurstButton;
             if (ImGui.Checkbox("Show Burst Button (experimental)", ref showBurst))
             {

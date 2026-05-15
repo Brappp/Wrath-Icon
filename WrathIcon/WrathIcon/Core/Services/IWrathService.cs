@@ -9,13 +9,10 @@ namespace WrathIcon.Core.Services
         bool? IsBurstHeld { get; }
         bool IsInitialized { get; }
 
-        event Action<bool>? StateChanged;
-        event Action<bool?>? BurstStateChanged;
-
         Task<bool> ToggleAutoRotationAsync();
         void ToggleBurst();
 
         void StartMonitoring();
         void StopMonitoring();
     }
-} 
+}

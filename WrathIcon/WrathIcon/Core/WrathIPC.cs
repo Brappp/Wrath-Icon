@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
+using Dalamud.Plugin.Ipc.Exceptions;
 using WrathIcon.Utilities;
 
 namespace WrathIcon.Core
@@ -14,7 +15,26 @@ namespace WrathIcon.Core
         private static ICallGateSubscriber<string, Dictionary<string, bool>?>? GetComboStateSubscriber;
 
         public static bool IsInitialized { get; private set; } = false;
-        private static bool? lastLoggedState = null; // Prevents unnecessary spam logging
+        private static bool? lastLoggedState = null;
+
+        /// <summary>True when WrathCombo's IPC endpoints are currently registered (i.e. the plugin is loaded/enabled).</summary>
+        public static bool IsWrathAvailable
+        {
+            get
+            {
+                if (!IsInitialized || GetComboStateSubscriber == null)
+                    return false;
+
+                try
+                {
+                    return GetComboStateSubscriber.HasFunction;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
 
         public static void Init(IDalamudPluginInterface pluginInterface)
         {
@@ -59,6 +79,10 @@ namespace WrathIcon.Core
                 var enabled = state.First().Value;
                 return !enabled;
             }
+            catch (IpcNotReadyError)
+            {
+                return null;
+            }
             catch (Exception ex)
             {
                 Logger.Error($"Error querying burst state for {presets[0]}", ex);
@@ -78,7 +102,6 @@ namespace WrathIcon.Core
             {
                 bool state = GetAutoRotationStateSubscriber.InvokeFunc();
 
-                // Only log if the state changes
                 if (state != lastLoggedState)
                 {
                     Logger.Debug($"Auto-Rotation state: {(state ? "Enabled" : "Disabled")}");
@@ -86,6 +109,10 @@ namespace WrathIcon.Core
                 }
 
                 return state;
+            }
+            catch (IpcNotReadyError)
+            {
+                return false;
             }
             catch (Exception e)
             {

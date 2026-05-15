@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace WrathIcon.Utilities
 {
-    public class ServiceContainer : IDisposable
+    public class Services : IDisposable
     {
         private readonly Dictionary<Type, object> services = new();
         private readonly Dictionary<Type, Func<object>> factories = new();
@@ -33,19 +33,19 @@ namespace WrathIcon.Utilities
         public T Get<T>()
         {
             var type = typeof(T);
-            
+
             if (services.TryGetValue(type, out var service))
             {
                 return (T)service;
             }
-            
+
             if (factories.TryGetValue(type, out var factory))
             {
                 var instance = factory();
                 services[type] = instance;
                 return (T)instance;
             }
-            
+
             throw new InvalidOperationException($"Service of type {type.Name} is not registered.");
         }
 
@@ -76,4 +76,4 @@ namespace WrathIcon.Utilities
             factories.Clear();
         }
     }
-} 
+}

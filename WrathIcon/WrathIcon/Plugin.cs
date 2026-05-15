@@ -16,7 +16,7 @@ namespace WrathIcon
     public sealed class Plugin : IDalamudPlugin
     {
         public readonly WindowSystem WindowSystem = new(Constants.WindowSystemName);
-        private readonly ServiceContainer services;
+        private readonly Services services;
         
         private MainWindow? mainWindow;
         private ConfigWindow? configWindow;
@@ -44,7 +44,7 @@ namespace WrathIcon
             {
                 Logger.Info("Initializing WrathIcon Plugin...");
                 
-                services = new ServiceContainer();
+                services = new Services();
                 InitializeServices();
                 InitializeIPC();
                 
@@ -73,12 +73,10 @@ namespace WrathIcon
         {
             try
             {
-                // Load and register configuration
                 config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
                 config.Initialize(PluginInterface);
                 services.Register(config);
 
-                // Register services
                 services.Register<ITextureService>(() => new TextureService(TextureProvider));
                 services.Register<IWrathService>(() => new WrathService());
 
@@ -134,20 +132,13 @@ namespace WrathIcon
             {
                 Logger.Info("Initializing plugin components...");
 
-                // Get services
                 textureService = services.Get<ITextureService>();
                 wrathService = services.Get<IWrathService>();
 
-                // Initialize windows
                 InitializeWindows();
-                
-                // Register command
                 RegisterCommand();
-                
-                // Register UI handlers
                 RegisterUIHandlers();
 
-                // Start monitoring
                 wrathService.StartMonitoring();
 
                 isInitialized = true;
@@ -251,6 +242,10 @@ namespace WrathIcon
                     Logger.Info("Login detected, initializing plugin");
                     Initialize();
                 }
+                else
+                {
+                    wrathService?.StartMonitoring();
+                }
 
                 if (mainWindow != null && config?.AutoShowOnLogin == true)
                 {
@@ -305,25 +300,20 @@ namespace WrathIcon
             {
                 Logger.Info("Disposing WrathIcon Plugin...");
 
-                // Unregister UI handlers
                 PluginInterface.UiBuilder.Draw -= DrawUI;
                 PluginInterface.UiBuilder.OpenMainUi -= OpenMainWindow;
                 PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigWindow;
 
-                // Unregister command
                 CommandManager.RemoveHandler(Constants.CommandName);
 
-                // Unregister event handlers
                 ClientState.Login -= OnLogin;
                 ClientState.Logout -= OnLogout;
                 Framework.Update -= OnFrameworkUpdate;
 
-                // Clean up windows
                 WindowSystem.RemoveAllWindows();
                 mainWindow?.Dispose();
                 configWindow?.Dispose();
 
-                // Dispose services
                 services?.Dispose();
 
                 disposed = true;

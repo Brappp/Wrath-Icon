@@ -21,7 +21,6 @@ namespace WrathIcon.Windows
 
         private IDalamudTextureWrap? iconOnTexture;
         private IDalamudTextureWrap? iconOffTexture;
-        private bool wrathState;
         private readonly Configuration config;
         private readonly ITextureService textureService;
         private readonly IWrathService wrathService;
@@ -37,9 +36,6 @@ namespace WrathIcon.Windows
             this.textureService = textureService ?? throw new ArgumentNullException(nameof(textureService));
             this.wrathService = wrathService ?? throw new ArgumentNullException(nameof(wrathService));
 
-            this.wrathService.StateChanged += OnWrathStateChanged;
-            wrathState = this.wrathService.IsAutoRotationEnabled;
-
             LoadTexturesAsync();
 
             IsOpen = config.AutoShowOnLogin;
@@ -53,13 +49,11 @@ namespace WrathIcon.Windows
             try
             {
                 Logger.Debug("Loading local textures...");
-                
-                // Load textures in parallel for better performance
+
                 var onTextureTask = textureService.LoadTextureAsync(Constants.IconOnPath);
                 var offTextureTask = textureService.LoadTextureAsync(Constants.IconOffPath);
 
-                // Wait for both with a reasonable timeout
-                var timeoutTask = Task.Delay(5000); // 5 second timeout
+                var timeoutTask = Task.Delay(5000);
                 var completedTask = await Task.WhenAny(
                     Task.WhenAll(onTextureTask, offTextureTask),
                     timeoutTask
@@ -91,12 +85,6 @@ namespace WrathIcon.Windows
                 Logger.Error("Failed to load local textures", ex);
                 texturesLoaded = false;
             }
-        }
-
-        private void OnWrathStateChanged(bool newState)
-        {
-            Logger.Debug($"Wrath state changed: {wrathState} -> {newState}");
-            wrathState = newState;
         }
 
         public override bool DrawConditions()
@@ -171,22 +159,24 @@ namespace WrathIcon.Windows
 
         private void DrawAutoRotationFontAwesome(Vector2 iconSize)
         {
-            var icon = wrathState ? FontAwesomeIcon.Play : FontAwesomeIcon.Stop;
-            var tint = wrathState ? new Vector4(0.0f, 1.0f, 0.0f, 0.3f) : new Vector4(1.0f, 0.0f, 0.0f, 0.3f);
+            var enabled = wrathService.IsAutoRotationEnabled;
+            var icon = enabled ? FontAwesomeIcon.Play : FontAwesomeIcon.Stop;
+            var tint = enabled ? new Vector4(0.0f, 1.0f, 0.0f, 0.3f) : new Vector4(1.0f, 0.0f, 0.0f, 0.3f);
 
             if (DrawIconButton("##autorot", icon, iconSize, tint))
                 TriggerAutoRotationToggle();
 
             if (config.ShowTooltips && ImGui.IsItemHovered())
-                ImGui.SetTooltip($"Auto-Rotation: {(wrathState ? "Enabled" : "Disabled")}\nClick to toggle");
+                ImGui.SetTooltip($"Auto-Rotation: {(enabled ? "Enabled" : "Disabled")}\nClick to toggle");
         }
 
         private void DrawAutoRotationImage(Vector2 iconSize)
         {
-            var currentIcon = wrathState ? iconOnTexture : iconOffTexture;
+            var enabled = wrathService.IsAutoRotationEnabled;
+            var currentIcon = enabled ? iconOnTexture : iconOffTexture;
             if (currentIcon == null)
             {
-                Logger.Warning($"Icon texture is null! wrathState={wrathState}");
+                Logger.Warning($"Icon texture is null! enabled={enabled}");
                 return;
             }
 
@@ -202,7 +192,7 @@ namespace WrathIcon.Windows
             ImGui.PopStyleColor(3);
 
             if (config.ShowTooltips && ImGui.IsItemHovered())
-                ImGui.SetTooltip($"Auto-Rotation: {(wrathState ? "Enabled" : "Disabled")}\nClick to toggle");
+                ImGui.SetTooltip($"Auto-Rotation: {(enabled ? "Enabled" : "Disabled")}\nClick to toggle");
         }
 
         private void DrawBurstButton(Vector2 iconSize)
@@ -312,7 +302,6 @@ namespace WrathIcon.Windows
 
         public void Dispose()
         {
-            wrathService.StateChanged -= OnWrathStateChanged;
             scaledIconFont?.Dispose();
             scaledIconFont = null;
             Logger.Debug("MainWindow disposed");

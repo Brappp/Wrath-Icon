@@ -46,15 +46,13 @@ namespace WrathIcon.Core.Services
                 {
                     var fileInfo = new FileInfo(path);
                     Logger.Debug($"File exists: {path} (Size: {fileInfo.Length} bytes)");
-                    
-                    // Check if it's actually a valid image file
+
                     if (fileInfo.Length < 10)
                     {
                         Logger.Error($"File too small to be a valid PNG: {path} ({fileInfo.Length} bytes)");
                         return null;
                     }
 
-                    // Use QoLBar's approach: CreateFromImageAsync with File.OpenRead
                     try
                     {
                         Logger.Debug($"Loading texture using CreateFromImageAsync: {path}");
@@ -99,7 +97,6 @@ namespace WrathIcon.Core.Services
         {
             string localPath;
 
-            // Determine paths based on icon type
             if (iconType.Equals("on", StringComparison.OrdinalIgnoreCase))
             {
                 localPath = Constants.IconOnPath;

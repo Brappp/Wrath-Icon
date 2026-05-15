@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace WrathIcon.Utilities
 {
-    public static class ThreadSafeExecutor
+    public static class Tasks
     {
         public static void RunOnMainThread(Action action)
         {
@@ -16,7 +16,7 @@ namespace WrathIcon.Utilities
                 Plugin.Framework.RunOnTick(action);
             }
         }
-        
+
         public static Task<T> RunOnMainThreadAsync<T>(Func<T> func)
         {
             var tcs = new TaskCompletionSource<T>();
@@ -34,7 +34,7 @@ namespace WrathIcon.Utilities
             });
             return tcs.Task;
         }
-        
+
         public static Task RunOnMainThreadAsync(Action action)
         {
             var tcs = new TaskCompletionSource<bool>();
@@ -53,4 +53,4 @@ namespace WrathIcon.Utilities
             return tcs.Task;
         }
     }
-} 
+}
